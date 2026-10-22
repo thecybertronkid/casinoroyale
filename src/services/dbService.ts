@@ -87,14 +87,7 @@ export const dbService = {
     if (!isSupabaseConfigured || !supabase) return null;
 
     try {
-      // 1. Fetch profile restrictions
-      const { data: profileData } = await supabase
-        .from('users_profile')
-        .select('is_banned, can_claim_relief, restricted_games, max_bet_limit, admin_notes')
-        .eq('id', userId)
-        .maybeSingle();
-
-      // 2. Fetch wallet & aggregate stats
+      // 1. Fetch wallet & aggregate stats FIRST (Critical for accurate balance)
       const { data: walletData, error: walletErr } = await supabase
         .from('user_wallets')
         .select('*')
@@ -109,29 +102,54 @@ export const dbService = {
         return null;
       }
 
-      // 3. Fetch recent bets (up to 100)
-      const { data: betsData, error: betsErr } = await supabase
-        .from('game_bets')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(100);
+      // 2. Fetch profile restrictions safely with select('*')
+      let restrictions: UserRestrictions | undefined = undefined;
+      try {
+        const { data: profileData } = await supabase
+          .from('users_profile')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
 
-      if (betsErr) {
-        console.warn('Database loadUserData bets error:', betsErr.message);
+        if (profileData) {
+          restrictions = {
+            isBanned: profileData.is_banned ?? false,
+            canClaimRelief: profileData.can_claim_relief ?? true,
+            restrictedGames: profileData.restricted_games ?? [],
+            maxBetLimit: profileData.max_bet_limit ? Number(profileData.max_bet_limit) : null,
+            adminNotes: profileData.admin_notes || '',
+          };
+        }
+      } catch (pErr) {
+        console.warn('Could not load profile restrictions:', pErr);
       }
 
-      const history: BetHistoryItem[] = (betsData || []).map((row) => ({
-        id: row.id,
-        game: row.game_id as GameId,
-        gameName: row.game_name,
-        betAmount: Number(row.bet_amount),
-        payout: Number(row.payout),
-        profit: Number(row.profit),
-        multiplier: Number(row.multiplier),
-        timestamp: new Date(row.created_at).getTime(),
-        details: row.details || '',
-      }));
+      // 3. Fetch recent bets (up to 100) safely
+      let history: BetHistoryItem[] = [];
+      try {
+        const { data: betsData, error: betsErr } = await supabase
+          .from('game_bets')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        if (!betsErr && betsData) {
+          history = betsData.map((row) => ({
+            id: row.id,
+            game: row.game_id as GameId,
+            gameName: row.game_name,
+            betAmount: Number(row.bet_amount),
+            payout: Number(row.payout),
+            profit: Number(row.profit),
+            multiplier: Number(row.multiplier),
+            timestamp: new Date(row.created_at).getTime(),
+            details: row.details || '',
+          }));
+        }
+      } catch (bErr) {
+        console.warn('Could not load bet history:', bErr);
+      }
 
       const stats: PlayerStats = {
         totalWagered: Number(walletData.total_wagered) || 0,
@@ -142,16 +160,6 @@ export const dbService = {
         biggestWin: Number(walletData.biggest_win) || 0,
         highestMultiplier: Number(walletData.highest_multiplier) || 1,
       };
-
-      const restrictions: UserRestrictions | undefined = profileData
-        ? {
-            isBanned: profileData.is_banned ?? false,
-            canClaimRelief: profileData.can_claim_relief ?? true,
-            restrictedGames: profileData.restricted_games ?? [],
-            maxBetLimit: profileData.max_bet_limit ? Number(profileData.max_bet_limit) : null,
-            adminNotes: profileData.admin_notes || '',
-          }
-        : undefined;
 
       return {
         balance: Number(walletData.balance),
@@ -319,7 +327,6 @@ export const dbService = {
       const registryRaw = localStorage.getItem('pb_all_user_registry') || '[]';
       let registry: UserProfile[] = JSON.parse(registryRaw);
 
-      // If registry is empty (e.g. fresh admin check), seed with sample high-roller accounts so admin has data to test
       if (registry.length === 0) {
         registry = [
           {
@@ -334,19 +341,6 @@ export const dbService = {
             restrictedGames: [],
             maxBetLimit: null,
             adminNotes: 'VIP Tier Emperor club prospect',
-          },
-          {
-            id: 'sample_vip_2',
-            email: 'rajesh.sharma@yahoo.com',
-            name: 'Rajesh Sharma',
-            picture: 'https://api.dicebear.com/7.x/bottts/svg?seed=Rajesh',
-            joinedAt: Date.now() - 86400000 * 7,
-            lastSeenAt: Date.now() - 3600000 * 8,
-            isBanned: false,
-            canClaimRelief: false,
-            restrictedGames: ['crash'],
-            maxBetLimit: 100,
-            adminNotes: 'Restricted from crash after high multiplier streak',
           },
         ];
         localStorage.setItem('pb_all_user_registry', JSON.stringify(registry));
@@ -410,7 +404,16 @@ export const dbService = {
     // 1. Update localStorage
     localStorage.setItem(`pb_u_${userId}_balance`, formattedBalance.toString());
 
-    // 2. Update Supabase if connected
+    // 2. Dispatch cross-component event so active UI updates instantaneously
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('pb_wallet_balance_changed', {
+          detail: { userId, balance: formattedBalance },
+        })
+      );
+    }
+
+    // 3. Update Supabase if connected
     if (isSupabaseConfigured && supabase) {
       try {
         const { error } = await supabase
@@ -536,30 +539,6 @@ export const dbService = {
       // ignore
     }
 
-    // Sample mock bets for demo accounts
-    return [
-      {
-        id: 'bet_101',
-        game: 'roulette',
-        gameName: 'European Roulette',
-        betAmount: 50,
-        payout: 100,
-        profit: 50,
-        multiplier: 2,
-        timestamp: Date.now() - 3600000,
-        details: 'Red 7 Hit',
-      },
-      {
-        id: 'bet_102',
-        game: 'crash',
-        gameName: 'Ascent Multiplier',
-        betAmount: 100,
-        payout: 0,
-        profit: -100,
-        multiplier: 0,
-        timestamp: Date.now() - 7200000,
-        details: 'Crashed @ 1.45x',
-      },
-    ];
+    return [];
   },
 };

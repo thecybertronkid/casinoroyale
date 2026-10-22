@@ -32,7 +32,7 @@ import {
 
 const CasinoContent: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
-  const { reloadWalletFromStorage } = useWallet();
+  const { refreshWalletFromCloud } = useWallet();
   const [activeGame, setActiveGame] = useState<GameId | null>(null);
   const [isStatsOpen, setIsStatsOpen] = useState<boolean>(false);
   const [isFairOpen, setIsFairOpen] = useState<boolean>(false);
@@ -45,8 +45,11 @@ const CasinoContent: React.FC = () => {
   if (isAdminView) {
     return (
       <AdminDashboard 
-        onBackToCasino={() => setIsAdminView(false)} 
-        onRefreshCurrentWallet={reloadWalletFromStorage}
+        onBackToCasino={() => {
+          setIsAdminView(false);
+          refreshWalletFromCloud();
+        }} 
+        onRefreshCurrentWallet={refreshWalletFromCloud}
       />
     );
   }

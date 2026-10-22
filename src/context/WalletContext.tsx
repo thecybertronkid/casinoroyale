@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import type { BetHistoryItem, PlayerStats, GameId } from '../types';
 import { sound } from '../utils/sound';
@@ -41,6 +41,8 @@ interface WalletContextType {
   resetWallet: () => void;
   dismissToast: (id: string) => void;
   reloadWalletFromStorage: () => void;
+  refreshWalletFromCloud: () => Promise<void>;
+  setWalletBalance: (newBalance: number) => void;
 }
 
 const INITIAL_BALANCE = 500;
@@ -70,19 +72,56 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isLoadingCloud, setIsLoadingCloud] = useState<boolean>(false);
   const isCloudConnected = isSupabaseConfigured;
 
-  const reloadWalletFromStorage = () => {
+  // Refresh wallet directly from Cloud or Local Storage
+  const refreshWalletFromCloud = useCallback(async () => {
+    if (!user) return;
+
+    // 1. Check local storage first
     const savedBal = localStorage.getItem(`${userPrefix}_balance`);
     if (savedBal !== null) {
       const val = parseFloat(savedBal);
-      if (!isNaN(val)) setBalance(val);
+      if (!isNaN(val)) {
+        setBalance(val);
+      }
     }
+
+    // 2. Fetch live values from Supabase
+    if (isSupabaseConfigured) {
+      try {
+        const cloudData = await dbService.loadUserData(user.id);
+        if (cloudData && typeof cloudData.balance === 'number' && !isNaN(cloudData.balance)) {
+          setBalance(cloudData.balance);
+          localStorage.setItem(`${userPrefix}_balance`, cloudData.balance.toString());
+          setStats(cloudData.stats);
+          localStorage.setItem(`${userPrefix}_stats`, JSON.stringify(cloudData.stats));
+          if (cloudData.history.length > 0) {
+            setHistory(cloudData.history);
+            localStorage.setItem(`${userPrefix}_history`, JSON.stringify(cloudData.history.slice(0, 50)));
+          }
+          if (cloudData.restrictions) {
+            updateUserRestrictions(cloudData.restrictions);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to refresh wallet from cloud:', err);
+      }
+    }
+  }, [user, userPrefix, updateUserRestrictions]);
+
+  const reloadWalletFromStorage = useCallback(() => {
+    refreshWalletFromCloud();
+  }, [refreshWalletFromCloud]);
+
+  const setWalletBalance = (newBalance: number) => {
+    const formatted = Math.max(0, Math.round(newBalance * 100) / 100);
+    setBalance(formatted);
+    localStorage.setItem(`${userPrefix}_balance`, formatted.toString());
   };
 
-  // Load user data whenever authenticated user changes
+  // Load user data on startup / user switch
   useEffect(() => {
     prefixRef.current = userPrefix;
 
-    // 1. Instant local cache load for zero-lag UI
     const savedBal = localStorage.getItem(`${userPrefix}_balance`);
     if (savedBal !== null) {
       const val = parseFloat(savedBal);
@@ -97,26 +136,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       try {
         setStats(JSON.parse(savedStats));
       } catch {
-        setStats({
-          totalWagered: 0,
-          totalWon: 0,
-          totalLost: 0,
-          netProfit: 0,
-          totalBets: 0,
-          biggestWin: 0,
-          highestMultiplier: 1,
-        });
+        // ignore
       }
-    } else {
-      setStats({
-        totalWagered: 0,
-        totalWon: 0,
-        totalLost: 0,
-        netProfit: 0,
-        totalBets: 0,
-        biggestWin: 0,
-        highestMultiplier: 1,
-      });
     }
 
     const savedHistory = localStorage.getItem(`${userPrefix}_history`);
@@ -124,41 +145,58 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       try {
         setHistory(JSON.parse(savedHistory));
       } catch {
-        setHistory([]);
+        // ignore
       }
-    } else {
-      setHistory([]);
     }
 
-    // 2. Cloud Database Sync (Supabase) if user is logged in
     if (user) {
       dbService.syncUserProfile(user);
-
-      if (isSupabaseConfigured) {
-        setIsLoadingCloud(true);
-        dbService
-          .loadUserData(user.id)
-          .then((cloudData) => {
-            if (cloudData) {
-              setBalance(cloudData.balance);
-              setStats(cloudData.stats);
-              if (cloudData.history.length > 0) {
-                setHistory(cloudData.history);
-              }
-              if (cloudData.restrictions) {
-                updateUserRestrictions(cloudData.restrictions);
-              }
-            }
-          })
-          .catch((err) => {
-            console.warn('Could not sync with Supabase cloud database:', err);
-          })
-          .finally(() => {
-            setIsLoadingCloud(false);
-          });
-      }
+      setIsLoadingCloud(true);
+      refreshWalletFromCloud().finally(() => {
+        setIsLoadingCloud(false);
+      });
     }
-  }, [userPrefix, user?.id]);
+  }, [userPrefix, user?.id, refreshWalletFromCloud]);
+
+  // Listen for Live Balance Events, Window Focus & Polling
+  useEffect(() => {
+    const handleBalanceChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<{ userId: string; balance: number }>;
+      if (customEvent.detail && customEvent.detail.userId === user?.id) {
+        setBalance(customEvent.detail.balance);
+      }
+    };
+
+    const handleFocus = () => {
+      refreshWalletFromCloud();
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === `${userPrefix}_balance` && e.newValue) {
+        const val = parseFloat(e.newValue);
+        if (!isNaN(val)) setBalance(val);
+      }
+    };
+
+    window.addEventListener('pb_wallet_balance_changed', handleBalanceChanged);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('storage', handleStorage);
+
+    // Periodic live cloud poll so live player sees pit boss changes automatically
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    if (user && isSupabaseConfigured) {
+      intervalId = setInterval(() => {
+        refreshWalletFromCloud();
+      }, 3500);
+    }
+
+    return () => {
+      window.removeEventListener('pb_wallet_balance_changed', handleBalanceChanged);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleStorage);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [userPrefix, user?.id, refreshWalletFromCloud]);
 
   // Persist balance under user's specific account in local storage
   useEffect(() => {
@@ -290,7 +328,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
     setHistory((prev) => [item, ...prev.slice(0, 49)]);
 
-    // Async sync to Supabase database
     if (user) {
       dbService.saveBetTransaction(user.id, item, newBalance, updatedStats);
     }
@@ -357,7 +394,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
     setHistory((prev) => [item, ...prev.slice(0, 49)]);
 
-    // Async sync to Supabase database
     if (user) {
       dbService.saveBetTransaction(user.id, item, balance, updatedStats);
     }
@@ -370,7 +406,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const claimReliefCredits = (amount: number = 500) => {
-    // Check if relief is restricted for this user
     if (user && user.canClaimRelief === false) {
       addToast({
         type: 'loss',
@@ -445,6 +480,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         resetWallet,
         dismissToast,
         reloadWalletFromStorage,
+        refreshWalletFromCloud,
+        setWalletBalance,
       }}
     >
       {children}
