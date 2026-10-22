@@ -3,6 +3,8 @@ import confetti from 'canvas-confetti';
 import type { BetHistoryItem, PlayerStats, GameId } from '../types';
 import { sound } from '../utils/sound';
 import { useAuth } from './AuthContext';
+import { dbService } from '../services/dbService';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 interface ToastNotification {
   id: string;
@@ -17,6 +19,8 @@ interface WalletContextType {
   history: BetHistoryItem[];
   toasts: ToastNotification[];
   isMuted: boolean;
+  isCloudConnected: boolean;
+  isLoadingCloud: boolean;
   toggleMute: () => void;
   placeBet: (amount: number, gameId: GameId) => boolean;
   creditWinnings: (
@@ -62,11 +66,14 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [history, setHistory] = useState<BetHistoryItem[]>([]);
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
   const [isMuted, setIsMuted] = useState<boolean>(() => sound.getMuted());
+  const [isLoadingCloud, setIsLoadingCloud] = useState<boolean>(false);
+  const isCloudConnected = isSupabaseConfigured;
 
   // Load user data whenever authenticated user changes
   useEffect(() => {
     prefixRef.current = userPrefix;
 
+    // 1. Instant local cache load for zero-lag UI
     const savedBal = localStorage.getItem(`${userPrefix}_balance`);
     if (savedBal !== null) {
       const val = parseFloat(savedBal);
@@ -113,9 +120,32 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } else {
       setHistory([]);
     }
-  }, [userPrefix]);
 
-  // Persist balance under user's specific account
+    // 2. Cloud Database Sync (Supabase) if user is logged in
+    if (user && isSupabaseConfigured) {
+      setIsLoadingCloud(true);
+      dbService
+        .syncUserProfile(user)
+        .then(() => dbService.loadUserData(user.id))
+        .then((cloudData) => {
+          if (cloudData) {
+            setBalance(cloudData.balance);
+            setStats(cloudData.stats);
+            if (cloudData.history.length > 0) {
+              setHistory(cloudData.history);
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not sync with Supabase cloud database:', err);
+        })
+        .finally(() => {
+          setIsLoadingCloud(false);
+        });
+    }
+  }, [userPrefix, user]);
+
+  // Persist balance under user's specific account in local storage
   useEffect(() => {
     localStorage.setItem(`${userPrefix}_balance`, balance.toString());
   }, [balance, userPrefix]);
@@ -175,25 +205,25 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const profit = Math.round((payout - betAmount) * 100) / 100;
     const roundedPayout = Math.round(payout * 100) / 100;
 
-    setBalance((prev) => Math.round((prev + roundedPayout) * 100) / 100);
+    const newBalance = Math.round((balance + roundedPayout) * 100) / 100;
+    setBalance(newBalance);
 
-    setStats((prev) => {
-      const newTotalWagered = prev.totalWagered + betAmount;
-      const newTotalWon = prev.totalWon + (profit > 0 ? profit : 0);
-      const newNetProfit = prev.netProfit + profit;
-      const newBiggestWin = Math.max(prev.biggestWin, roundedPayout);
-      const newHighestMultiplier = Math.max(prev.highestMultiplier, multiplier);
+    const newTotalWagered = stats.totalWagered + betAmount;
+    const newTotalWon = stats.totalWon + (profit > 0 ? profit : 0);
+    const newNetProfit = stats.netProfit + profit;
+    const newBiggestWin = Math.max(stats.biggestWin, roundedPayout);
+    const newHighestMultiplier = Math.max(stats.highestMultiplier, multiplier);
 
-      return {
-        ...prev,
-        totalWagered: Math.round(newTotalWagered * 100) / 100,
-        totalWon: Math.round(newTotalWon * 100) / 100,
-        netProfit: Math.round(newNetProfit * 100) / 100,
-        totalBets: prev.totalBets + 1,
-        biggestWin: Math.round(newBiggestWin * 100) / 100,
-        highestMultiplier: Math.round(newHighestMultiplier * 100) / 100,
-      };
-    });
+    const updatedStats: PlayerStats = {
+      ...stats,
+      totalWagered: Math.round(newTotalWagered * 100) / 100,
+      totalWon: Math.round(newTotalWon * 100) / 100,
+      netProfit: Math.round(newNetProfit * 100) / 100,
+      totalBets: stats.totalBets + 1,
+      biggestWin: Math.round(newBiggestWin * 100) / 100,
+      highestMultiplier: Math.round(newHighestMultiplier * 100) / 100,
+    };
+    setStats(updatedStats);
 
     const item: BetHistoryItem = {
       id: Math.random().toString(36).substring(2, 9),
@@ -207,6 +237,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       details,
     };
     setHistory((prev) => [item, ...prev.slice(0, 49)]);
+
+    // Async sync to Supabase database
+    if (user && isSupabaseConfigured) {
+      dbService.saveBetTransaction(user.id, item, newBalance, updatedStats);
+    }
 
     if (multiplier >= 15 || roundedPayout >= betAmount * 15) {
       sound.playJackpot();
@@ -248,13 +283,14 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const recordLoss = (game: GameId, gameName: string, betAmount: number, details: string) => {
     sound.playLose();
 
-    setStats((prev) => ({
-      ...prev,
-      totalWagered: Math.round((prev.totalWagered + betAmount) * 100) / 100,
-      totalLost: Math.round((prev.totalLost + betAmount) * 100) / 100,
-      netProfit: Math.round((prev.netProfit - betAmount) * 100) / 100,
-      totalBets: prev.totalBets + 1,
-    }));
+    const updatedStats: PlayerStats = {
+      ...stats,
+      totalWagered: Math.round((stats.totalWagered + betAmount) * 100) / 100,
+      totalLost: Math.round((stats.totalLost + betAmount) * 100) / 100,
+      netProfit: Math.round((stats.netProfit - betAmount) * 100) / 100,
+      totalBets: stats.totalBets + 1,
+    };
+    setStats(updatedStats);
 
     const item: BetHistoryItem = {
       id: Math.random().toString(36).substring(2, 9),
@@ -269,6 +305,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
     setHistory((prev) => [item, ...prev.slice(0, 49)]);
 
+    // Async sync to Supabase database
+    if (user && isSupabaseConfigured) {
+      dbService.saveBetTransaction(user.id, item, balance, updatedStats);
+    }
+
     addToast({
       type: 'loss',
       title: 'Loss 💸',
@@ -278,7 +319,13 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const claimReliefCredits = (amount: number = 500) => {
     sound.playWin();
-    setBalance((prev) => prev + amount);
+    const newBalance = balance + amount;
+    setBalance(newBalance);
+
+    if (user && isSupabaseConfigured) {
+      dbService.updateWalletBalance(user.id, newBalance);
+    }
+
     confetti({
       particleCount: 40,
       spread: 50,
@@ -305,6 +352,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       highestMultiplier: 1,
     });
     setHistory([]);
+
+    if (user && isSupabaseConfigured) {
+      dbService.resetUserWallet(user.id);
+    }
+
     addToast({
       type: 'info',
       title: 'Wallet Reset',
@@ -320,6 +372,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         history,
         toasts,
         isMuted,
+        isCloudConnected,
+        isLoadingCloud,
         toggleMute,
         placeBet,
         creditWinnings,

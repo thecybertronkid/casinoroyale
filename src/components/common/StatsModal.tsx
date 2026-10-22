@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { useWallet } from '../../context/WalletContext';
+import { useAuth } from '../../context/AuthContext';
 import { 
   X, 
   Coins, 
   TrendingUp, 
   TrendingDown, 
   Crown,
-  Download
+  Download,
+  Database,
+  CloudCheck,
+  RefreshCw
 } from 'lucide-react';
 import type { GameId } from '../../types';
 
@@ -16,7 +20,8 @@ interface StatsModalProps {
 }
 
 export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose }) => {
-  const { stats, history, balance } = useWallet();
+  const { stats, history, balance, isCloudConnected, isLoadingCloud } = useWallet();
+  const { user } = useAuth();
   const [filterGame, setFilterGame] = useState<GameId | 'all'>('all');
 
   if (!isOpen) return null;
@@ -66,10 +71,28 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-white/[0.06] bg-[#0a0b10]">
           <div>
-            <h3 className="font-luxury text-lg font-bold text-white tracking-wide">
-              PLAYER PERFORMANCE LEDGER
-            </h3>
-            <p className="text-xs text-slate-400 font-light">Account metrics & audited rounds</p>
+            <div className="flex items-center gap-2">
+              <h3 className="font-luxury text-lg font-bold text-white tracking-wide">
+                PLAYER PERFORMANCE LEDGER
+              </h3>
+              {isCloudConnected ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
+                  <CloudCheck className="w-3 h-3" />
+                  <span>Cloud DB Synced</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono" title="Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable cloud sync">
+                  <Database className="w-3 h-3" />
+                  <span>Local Cache</span>
+                </span>
+              )}
+              {isLoadingCloud && (
+                <RefreshCw className="w-3 h-3 text-[#d4af37] animate-spin" />
+              )}
+            </div>
+            <p className="text-xs text-slate-400 font-light">
+              Account: <span className="text-[#f3e5ab] font-mono">{user ? user.name : 'Guest'}</span> ({user?.email || 'Demo Mode'})
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -144,6 +167,27 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
 
+          {/* Secondary stats row: Total Won vs Total Lost */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-xl bg-[#0a0b10] border border-emerald-500/15">
+              <span className="text-[10px] uppercase tracking-wider text-emerald-400 block font-medium mb-1">
+                Total Earned (Wins)
+              </span>
+              <div className="text-sm sm:text-base font-mono font-semibold text-emerald-400">
+                +₹{stats.totalWon.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-[#0a0b10] border border-rose-500/15">
+              <span className="text-[10px] uppercase tracking-wider text-rose-400 block font-medium mb-1">
+                Total Lost
+              </span>
+              <div className="text-sm sm:text-base font-mono font-semibold text-rose-400">
+                -₹{stats.totalLost.toFixed(2)}
+              </div>
+            </div>
+          </div>
+
           {/* Table */}
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -191,6 +235,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose }) => {
                       <th className="py-2.5 px-3">Wager</th>
                       <th className="py-2.5 px-3">Payout</th>
                       <th className="py-2.5 px-3">Net</th>
+                      <th className="py-2.5 px-3">Multiplier</th>
                       <th className="py-2.5 px-3">Time</th>
                     </tr>
                   </thead>
@@ -211,6 +256,9 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose }) => {
                         </td>
                         <td className={`py-2 px-3 font-mono font-medium ${item.profit > 0 ? 'text-emerald-400' : item.profit < 0 ? 'text-rose-400' : 'text-slate-400'}`}>
                           {item.profit > 0 ? '+' : ''}₹{item.profit.toFixed(2)}
+                        </td>
+                        <td className="py-2 px-3 font-mono text-slate-400 text-[11px]">
+                          {item.multiplier > 0 ? `${item.multiplier.toFixed(2)}x` : '-'}
                         </td>
                         <td className="py-2 px-3 text-slate-500 text-[10px] font-mono whitespace-nowrap">
                           {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
