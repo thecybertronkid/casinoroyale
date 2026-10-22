@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import type { UserProfile } from '../types/auth';
+import type { UserProfile, UserRestrictions } from '../types/auth';
 
 interface GoogleJwtPayload {
   sub: string;
@@ -14,6 +14,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loginWithGoogleCredential: (credential: string) => boolean;
   loginDemoUser: (name?: string, email?: string) => void;
+  updateUserRestrictions: (restrictions: Partial<UserRestrictions>) => void;
   logout: () => void;
 }
 
@@ -44,10 +45,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
+  const getStoredRestrictions = (id: string): UserRestrictions => {
+    const saved = localStorage.getItem(`pb_u_${id}_restrictions`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // ignore
+      }
+    }
+    return {
+      isBanned: false,
+      canClaimRelief: true,
+      restrictedGames: [],
+      maxBetLimit: null,
+      adminNotes: '',
+    };
+  };
+
   const loginWithGoogleCredential = (credential: string): boolean => {
     try {
       const decoded = jwtDecode<GoogleJwtPayload>(credential);
       if (!decoded || !decoded.sub) return false;
+
+      const restrictions = getStoredRestrictions(decoded.sub);
 
       const profile: UserProfile = {
         id: decoded.sub,
@@ -55,6 +76,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: decoded.name || 'Member',
         picture: decoded.picture || '',
         joinedAt: Date.now(),
+        lastSeenAt: Date.now(),
+        ...restrictions,
       };
 
       setUser(profile);
@@ -65,16 +88,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Instant login demo fallback (for local development or if Google origin is not yet whitelisted)
   const loginDemoUser = (name = 'High Roller', email = 'member@poisaborbaad.vip') => {
+    const id = 'demo_' + Math.abs(email.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0));
+    const restrictions = getStoredRestrictions(id);
+
     const profile: UserProfile = {
-      id: 'demo_' + Math.abs(email.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)),
+      id,
       email,
       name,
       picture: `https://api.dicebear.com/7.x/bottts/svg?seed=${name}`,
       joinedAt: Date.now(),
+      lastSeenAt: Date.now(),
+      ...restrictions,
     };
     setUser(profile);
+  };
+
+  const updateUserRestrictions = (restrictions: Partial<UserRestrictions>) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const updated = { ...prev, ...restrictions };
+      localStorage.setItem(`pb_u_${prev.id}_restrictions`, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const logout = () => {
@@ -88,6 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!user,
         loginWithGoogleCredential,
         loginDemoUser,
+        updateUserRestrictions,
         logout,
       }}
     >

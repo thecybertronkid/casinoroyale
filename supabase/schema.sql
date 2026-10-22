@@ -9,9 +9,34 @@ CREATE TABLE IF NOT EXISTS public.users_profile (
     email TEXT,
     name TEXT,
     avatar_url TEXT,
+    is_banned BOOLEAN NOT NULL DEFAULT false,
+    can_claim_relief BOOLEAN NOT NULL DEFAULT true,
+    restricted_games TEXT[] NOT NULL DEFAULT '{}',
+    max_bet_limit NUMERIC(14, 2) DEFAULT NULL,
+    admin_notes TEXT DEFAULT '',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     last_seen_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- In case table already exists without newer columns, add them safely:
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users_profile' AND column_name = 'is_banned') THEN
+        ALTER TABLE public.users_profile ADD COLUMN is_banned BOOLEAN NOT NULL DEFAULT false;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users_profile' AND column_name = 'can_claim_relief') THEN
+        ALTER TABLE public.users_profile ADD COLUMN can_claim_relief BOOLEAN NOT NULL DEFAULT true;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users_profile' AND column_name = 'restricted_games') THEN
+        ALTER TABLE public.users_profile ADD COLUMN restricted_games TEXT[] NOT NULL DEFAULT '{}';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users_profile' AND column_name = 'max_bet_limit') THEN
+        ALTER TABLE public.users_profile ADD COLUMN max_bet_limit NUMERIC(14, 2) DEFAULT NULL;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users_profile' AND column_name = 'admin_notes') THEN
+        ALTER TABLE public.users_profile ADD COLUMN admin_notes TEXT DEFAULT '';
+    END IF;
+END $$;
 
 -- 2. Create table for user wallets and aggregate player statistics
 CREATE TABLE IF NOT EXISTS public.user_wallets (
@@ -53,7 +78,6 @@ ALTER TABLE public.user_wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.game_bets ENABLE ROW LEVEL SECURITY;
 
 -- 6. Create RLS Policies for Anon & Authenticated access via public client
--- (Allows reading and writing scoped to the application client)
 DROP POLICY IF EXISTS "Public access users_profile" ON public.users_profile;
 CREATE POLICY "Public access users_profile" ON public.users_profile 
     FOR ALL USING (true) WITH CHECK (true);

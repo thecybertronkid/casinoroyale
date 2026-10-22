@@ -22,7 +22,7 @@ interface WalletContextType {
   isCloudConnected: boolean;
   isLoadingCloud: boolean;
   toggleMute: () => void;
-  placeBet: (amount: number, gameId: GameId) => boolean;
+  placeBet: (amount: number, gameId?: GameId) => boolean;
   creditWinnings: (
     game: GameId,
     gameName: string,
@@ -40,6 +40,7 @@ interface WalletContextType {
   claimReliefCredits: (amount?: number) => void;
   resetWallet: () => void;
   dismissToast: (id: string) => void;
+  reloadWalletFromStorage: () => void;
 }
 
 const INITIAL_BALANCE = 500;
@@ -47,7 +48,7 @@ const INITIAL_BALANCE = 500;
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, updateUserRestrictions } = useAuth();
   
   // Storage prefix unique to each Google Account to prevent duplicate access
   const userPrefix = user ? `pb_u_${user.id}` : 'pb_guest';
@@ -68,6 +69,14 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isMuted, setIsMuted] = useState<boolean>(() => sound.getMuted());
   const [isLoadingCloud, setIsLoadingCloud] = useState<boolean>(false);
   const isCloudConnected = isSupabaseConfigured;
+
+  const reloadWalletFromStorage = () => {
+    const savedBal = localStorage.getItem(`${userPrefix}_balance`);
+    if (savedBal !== null) {
+      const val = parseFloat(savedBal);
+      if (!isNaN(val)) setBalance(val);
+    }
+  };
 
   // Load user data whenever authenticated user changes
   useEffect(() => {
@@ -122,28 +131,34 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     // 2. Cloud Database Sync (Supabase) if user is logged in
-    if (user && isSupabaseConfigured) {
-      setIsLoadingCloud(true);
-      dbService
-        .syncUserProfile(user)
-        .then(() => dbService.loadUserData(user.id))
-        .then((cloudData) => {
-          if (cloudData) {
-            setBalance(cloudData.balance);
-            setStats(cloudData.stats);
-            if (cloudData.history.length > 0) {
-              setHistory(cloudData.history);
+    if (user) {
+      dbService.syncUserProfile(user);
+
+      if (isSupabaseConfigured) {
+        setIsLoadingCloud(true);
+        dbService
+          .loadUserData(user.id)
+          .then((cloudData) => {
+            if (cloudData) {
+              setBalance(cloudData.balance);
+              setStats(cloudData.stats);
+              if (cloudData.history.length > 0) {
+                setHistory(cloudData.history);
+              }
+              if (cloudData.restrictions) {
+                updateUserRestrictions(cloudData.restrictions);
+              }
             }
-          }
-        })
-        .catch((err) => {
-          console.warn('Could not sync with Supabase cloud database:', err);
-        })
-        .finally(() => {
-          setIsLoadingCloud(false);
-        });
+          })
+          .catch((err) => {
+            console.warn('Could not sync with Supabase cloud database:', err);
+          })
+          .finally(() => {
+            setIsLoadingCloud(false);
+          });
+      }
     }
-  }, [userPrefix, user]);
+  }, [userPrefix, user?.id]);
 
   // Persist balance under user's specific account in local storage
   useEffect(() => {
@@ -177,13 +192,50 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const placeBet = (amount: number): boolean => {
+  const placeBet = (amount: number, gameId?: GameId): boolean => {
     if (amount <= 0) return false;
+
+    // 1. Account Freeze / Ban check
+    if (user?.isBanned) {
+      addToast({
+        type: 'loss',
+        title: 'Account Suspended',
+        message: 'Your account has been suspended by the Casino Pit Boss. Wagers disabled.',
+      });
+      sound.playLose();
+      return false;
+    }
+
+    // 2. Specific Game Restriction check
+    if (gameId && user?.restrictedGames?.includes(gameId)) {
+      addToast({
+        type: 'loss',
+        title: 'Game Restricted',
+        message: `Management has restricted access to this game for your account.`,
+      });
+      sound.playLose();
+      return false;
+    }
+
+    // 3. Max Bet Limit check
+    if (user?.maxBetLimit && amount > user.maxBetLimit) {
+      addToast({
+        type: 'info',
+        title: 'Limit Exceeded',
+        message: `Your account wager is capped at ₹${user.maxBetLimit} per round.`,
+      });
+      sound.playLose();
+      return false;
+    }
+
+    // 4. Balance check
     if (balance < amount) {
       addToast({
         type: 'info',
         title: 'Insufficient Balance!',
-        message: 'Claim ₹500 Borbaad Demo Relief to continue playing.',
+        message: user?.canClaimRelief
+          ? 'Claim ₹500 Borbaad Demo Relief to continue playing.'
+          : 'Insufficient balance. Contact casino manager.',
       });
       sound.playLose();
       return false;
@@ -239,7 +291,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setHistory((prev) => [item, ...prev.slice(0, 49)]);
 
     // Async sync to Supabase database
-    if (user && isSupabaseConfigured) {
+    if (user) {
       dbService.saveBetTransaction(user.id, item, newBalance, updatedStats);
     }
 
@@ -306,7 +358,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setHistory((prev) => [item, ...prev.slice(0, 49)]);
 
     // Async sync to Supabase database
-    if (user && isSupabaseConfigured) {
+    if (user) {
       dbService.saveBetTransaction(user.id, item, balance, updatedStats);
     }
 
@@ -318,11 +370,22 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const claimReliefCredits = (amount: number = 500) => {
+    // Check if relief is restricted for this user
+    if (user && user.canClaimRelief === false) {
+      addToast({
+        type: 'loss',
+        title: 'Reload Blocked',
+        message: 'Demo credit reloads have been disabled for your account by the casino manager.',
+      });
+      sound.playLose();
+      return;
+    }
+
     sound.playWin();
     const newBalance = balance + amount;
     setBalance(newBalance);
 
-    if (user && isSupabaseConfigured) {
+    if (user) {
       dbService.updateWalletBalance(user.id, newBalance);
     }
 
@@ -353,7 +416,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
     setHistory([]);
 
-    if (user && isSupabaseConfigured) {
+    if (user) {
       dbService.resetUserWallet(user.id);
     }
 
@@ -381,6 +444,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         claimReliefCredits,
         resetWallet,
         dismissToast,
+        reloadWalletFromStorage,
       }}
     >
       {children}

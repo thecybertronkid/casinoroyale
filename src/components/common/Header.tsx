@@ -9,12 +9,14 @@ import {
   ShieldCheck, 
   Crown,
   Plus,
-  LogOut
+  LogOut,
+  ShieldAlert
 } from 'lucide-react';
 
 interface HeaderProps {
   onOpenStats: () => void;
   onOpenFairModal: () => void;
+  onOpenAdmin: () => void;
   activeGame: string | null;
   onBackToLobby: () => void;
 }
@@ -22,6 +24,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   onOpenStats,
   onOpenFairModal,
+  onOpenAdmin,
   activeGame,
   onBackToLobby,
 }) => {
@@ -102,8 +105,13 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Subtle Reload Button */}
             <button
               onClick={() => claimReliefCredits(500)}
-              title="Add ₹500 Demo Credits"
-              className="px-2.5 py-1.5 rounded-lg bg-[#d4af37]/15 hover:bg-[#d4af37]/25 text-[#f3e5ab] border border-[#d4af37]/30 text-xs font-semibold flex items-center gap-1 transition active:scale-95"
+              title={user?.canClaimRelief === false ? 'Demo reloads blocked on your account' : 'Add ₹500 Demo Credits'}
+              disabled={user?.canClaimRelief === false}
+              className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition active:scale-95 ${
+                user?.canClaimRelief === false
+                  ? 'bg-slate-800/40 text-slate-600 border-white/5 cursor-not-allowed'
+                  : 'bg-[#d4af37]/15 hover:bg-[#d4af37]/25 text-[#f3e5ab] border-[#d4af37]/30'
+              }`}
             >
               <Plus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline text-[11px]">₹500</span>
@@ -119,6 +127,17 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <BarChart2 className="w-4 h-4 text-[#d4af37]" />
             <span className="hidden md:inline text-[11px]">Ledger</span>
+          </button>
+
+          {/* Pit Boss Admin Terminal Trigger */}
+          <button
+            onClick={onOpenAdmin}
+            title="Executive Pit Boss Terminal (Admin Dashboard)"
+            aria-label="Pit Boss Terminal"
+            className="p-2 sm:px-3 sm:py-2 rounded-xl bg-[#d4af37]/10 hover:bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30 hover:border-[#d4af37]/60 transition flex items-center gap-1.5 text-xs font-medium shadow-sm"
+          >
+            <ShieldAlert className="w-4 h-4" />
+            <span className="hidden xl:inline text-[11px] font-semibold tracking-wider uppercase">Pit Boss</span>
           </button>
 
           {/* Fair Play Verifier */}
