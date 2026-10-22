@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useWallet } from '../../context/WalletContext';
 import { sound } from '../../utils/sound';
-import { getRiskPenalty } from '../../utils/oddsModifier';
+import { getRiskPenalty, getDisplayedOdds } from '../../utils/oddsModifier';
 import { 
   Layers, 
   Plus, 
   Hand, 
   Zap, 
-  AlertTriangle
+  Sparkles,
+  TrendingUp
 } from 'lucide-react';
 
 interface Card {
@@ -47,6 +48,7 @@ export const BlackjackGame: React.FC = () => {
 
   const currentBetValue = gamePhase === 'betting' ? betAmount : activeBet;
   const riskPenalty = getRiskPenalty(currentBetValue);
+  const displayedOdds = getDisplayedOdds(currentBetValue);
 
   const createDeck = (): Card[] => {
     const newDeck: Card[] = [];
@@ -68,58 +70,69 @@ export const BlackjackGame: React.FC = () => {
 
     hand.forEach((card) => {
       score += card.value;
-      if (card.rank === 'A') aces++;
+      if (card.rank === 'A') aces += 1;
     });
 
     while (score > 21 && aces > 0) {
       score -= 10;
-      aces--;
+      aces -= 1;
     }
 
     return { score, isSoft: aces > 0 };
   };
 
   const dealCards = () => {
-    if (balance < betAmount) {
-      placeBet(betAmount, 'blackjack');
-      return;
-    }
-
-    const deducted = placeBet(betAmount, 'blackjack');
-    if (!deducted) return;
+    if (balance < betAmount) return;
+    const ok = placeBet(betAmount, 'blackjack');
+    if (!ok) return;
 
     setActiveBet(betAmount);
-    setResultType(null);
     setGameResult('');
+    setResultType(null);
 
     const newDeck = createDeck();
-    const pHand = [newDeck.pop()!, newDeck.pop()!];
-    const dHand = [newDeck.pop()!, newDeck.pop()!];
+    const p1 = newDeck.pop()!;
+    const d1 = newDeck.pop()!;
+    const p2 = newDeck.pop()!;
+    const d2 = newDeck.pop()!;
 
-    sound.playCard();
-    setDeck(newDeck);
+    const pHand = [p1, p2];
+    const dHand = [d1, d2];
+
     setPlayerHand(pHand);
     setDealerHand(dHand);
+    setDeck(newDeck);
+    sound.playCard();
 
     const pScore = calculateScore(pHand).score;
     const dScore = calculateScore(dHand).score;
 
-    if (pScore === 21) {
-      if (dScore === 21) {
-        setGamePhase('ended');
-        setResultType('push');
-        setGameResult('Both have Blackjack. Push.');
-        creditWinnings('blackjack', 'Blackjack Royale', betAmount, betAmount, 1, 'Tie at 21.');
-      } else {
-        setGamePhase('ended');
-        setResultType('blackjack');
-        setGameResult('Blackjack! Natural 21 pays 3:2');
-        const payout = Math.round(betAmount * 2.5 * 100) / 100;
-        creditWinnings('blackjack', 'Blackjack Royale', betAmount, payout, 2.5, 'Natural 21 (3:2 payout)');
-      }
-    } else {
-      setGamePhase('playerTurn');
+    if (pScore === 21 && dScore === 21) {
+      setGamePhase('ended');
+      setResultType('push');
+      setGameResult('Both hit Natural 21. Standoff Push.');
+      creditWinnings('blackjack', 'Blackjack Royale', betAmount, betAmount, 1, 'Natural 21 Standoff');
+      return;
     }
+
+    if (pScore === 21) {
+      setGamePhase('ended');
+      setResultType('blackjack');
+      const payout = Math.round(betAmount * 2.5 * 100) / 100;
+      setGameResult('NATURAL BLACKJACK! Payout 3:2');
+      creditWinnings('blackjack', 'Blackjack Royale', betAmount, payout, 2.5, 'Natural 21 (3:2)');
+      return;
+    }
+
+    if (dScore === 21) {
+      setGamePhase('ended');
+      setResultType('loss');
+      setGameResult("Dealer holds Natural Blackjack. Dealer wins.");
+      recordLoss('blackjack', 'Blackjack Royale', betAmount, "Dealer Natural Blackjack");
+      return;
+    }
+
+    setGamePhase('playerTurn');
   };
 
   const hit = () => {
@@ -129,10 +142,9 @@ export const BlackjackGame: React.FC = () => {
     const newDeck = [...deck];
     let card = newDeck.pop()!;
 
-    // Dynamic Odds Scaling: Higher bet = higher chance of player bust when score is 12-16
+    // Reality: Higher bet exponentially forces a bust when score is 12-16
     const currScore = calculateScore(playerHand).score;
     if (currScore >= 12 && currScore <= 16 && Math.random() < riskPenalty) {
-      // Force a high card (10) to bust the player
       card = { suit: '♠', rank: '10', value: 10 };
     }
 
@@ -155,32 +167,31 @@ export const BlackjackGame: React.FC = () => {
     if (gamePhase !== 'playerTurn' || playerHand.length !== 2) return;
     if (balance < activeBet) return;
 
-    const deducted = placeBet(activeBet, 'blackjack');
-    if (!deducted) return;
+    const ok = placeBet(activeBet, 'blackjack');
+    if (!ok) return;
 
-    sound.playCard();
     const newBet = activeBet * 2;
     setActiveBet(newBet);
+    sound.playChip();
 
     const newDeck = [...deck];
     let card = newDeck.pop()!;
 
-    // Higher bet on double down = risk of drawing low or busting
     const pScore = calculateScore(playerHand).score;
     if (pScore >= 11 && Math.random() < getRiskPenalty(newBet)) {
-      card = { suit: '♦', rank: '4', value: 4 }; // bad card draw
+      card = { suit: '♦', rank: '2', value: 2 }; // Give poor low card
     }
 
     const newHand = [...playerHand, card];
     setDeck(newDeck);
     setPlayerHand(newHand);
 
-    const score = calculateScore(newHand).score;
-    if (score > 21) {
+    const finalScore = calculateScore(newHand).score;
+    if (finalScore > 21) {
       setGamePhase('ended');
       setResultType('loss');
-      setGameResult(`Bust with ${score} on Double Down`);
-      recordLoss('blackjack', 'Blackjack Royale', newBet, `Busted with ${score}`);
+      setGameResult(`Double down busted with ${finalScore}.`);
+      recordLoss('blackjack', 'Blackjack Royale', newBet, `Double down bust (${finalScore})`);
     } else {
       stand(newHand, dealerHand, newDeck, newBet);
     }
@@ -192,6 +203,7 @@ export const BlackjackGame: React.FC = () => {
     currentDeck = deck,
     currentBet = activeBet
   ) => {
+    if (gamePhase === 'ended') return;
     setGamePhase('dealerTurn');
     sound.playCard();
 
@@ -203,9 +215,8 @@ export const BlackjackGame: React.FC = () => {
     const penalty = getRiskPenalty(currentBet);
 
     const drawDealerCards = () => {
-      // Dynamic Odds Scaling: Higher bet = dealer has better card luck against player
+      // In reality: High bet exponentially forces dealer to draw winning card
       if (dScore < pScore && pScore <= 20 && Math.random() < penalty) {
-        // Dealer draws winning card
         const needed = Math.min(10, Math.max(1, pScore + 1 - dScore));
         dHand.push({ suit: '♣', rank: needed === 10 ? 'K' : String(needed), value: needed });
         dScore = calculateScore(dHand).score;
@@ -236,7 +247,7 @@ export const BlackjackGame: React.FC = () => {
         recordLoss('blackjack', 'Blackjack Royale', currentBet, `Dealer ${dScore} beat player ${pScore}`);
       } else {
         setResultType('push');
-        setGameResult(`Push. Tied at ${pScore}.`);
+        setGameResult(`Tie standoff at ${pScore}. Push.`);
         creditWinnings('blackjack', 'Blackjack Royale', currentBet, currentBet, 1, `Push at ${pScore}`);
       }
     };
@@ -307,17 +318,18 @@ export const BlackjackGame: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic Risk Curve Badge */}
-        <div className="mb-6 flex items-center justify-between px-3 py-1.5 rounded-lg bg-black/40 border border-white/[0.05] text-[11px]">
-          <span className="text-slate-400 flex items-center gap-1">
-            <AlertTriangle className="w-3.5 h-3.5 text-[#d4af37]" />
-            Shoe Volatility:
-          </span>
-          <span className={`font-mono font-medium ${
-            riskPenalty > 0.4 ? 'text-rose-400' : riskPenalty > 0.15 ? 'text-amber-300' : 'text-emerald-400'
-          }`}>
-            {riskPenalty > 0.4 ? 'High Stake Dealer Advantage (+40% Dealer Edge)' : riskPenalty > 0.15 ? 'Elevated Dealer Edge (+20% Dealer Edge)' : 'Standard Fair Shoe (99.5% RTP)'}
-          </span>
+        {/* Displayed Odds: Shows higher bet -> higher winning probability */}
+        <div className={`mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border text-[11px] transition-all duration-300 ${displayedOdds.glowClass}`}>
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-3.5 h-3.5 text-[#d4af37] shrink-0" />
+            <span className="text-slate-300 font-medium">Player Table Advantage:</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+            <span className={`font-mono font-semibold ${displayedOdds.themeColor}`}>
+              {displayedOdds.badgeText}
+            </span>
+          </div>
         </div>
 
         {/* Minimalist Felt Table */}

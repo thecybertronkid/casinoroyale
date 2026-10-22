@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useWallet } from '../../context/WalletContext';
 import { sound } from '../../utils/sound';
-import { getRiskPenalty } from '../../utils/oddsModifier';
-import { Bomb, AlertTriangle } from 'lucide-react';
+import { getRiskPenalty, getDisplayedOdds } from '../../utils/oddsModifier';
+import { Bomb, Sparkles, TrendingUp } from 'lucide-react';
 
 interface TileState {
   index: number;
@@ -74,9 +74,8 @@ export const MinesGame: React.FC = () => {
 
     let clickedTile = tiles[index];
 
-    // Dynamic Odds Scaling: Higher bet = higher chance of mine trigger
-    if (!clickedTile.isMine && Math.random() < riskPenalty * 0.40) {
-      // Switch clicked tile to a mine for high-roller hazard
+    // In reality: Higher bet exponentially forces mine detonation (drops win chance to near 0)
+    if (!clickedTile.isMine && Math.random() < riskPenalty * 0.95) {
       clickedTile = { ...clickedTile, isMine: true };
     }
 
@@ -169,18 +168,24 @@ export const MinesGame: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic Risk Curve Badge */}
-        <div className="mb-6 flex items-center justify-between px-3 py-1.5 rounded-lg bg-black/40 border border-white/[0.05] text-[11px]">
-          <span className="text-slate-400 flex items-center gap-1">
-            <AlertTriangle className="w-3.5 h-3.5 text-[#d4af37]" />
-            Minefield Density Factor:
-          </span>
-          <span className={`font-mono font-medium ${
-            riskPenalty > 0.4 ? 'text-rose-400' : riskPenalty > 0.15 ? 'text-amber-300' : 'text-emerald-400'
-          }`}>
-            {riskPenalty > 0.4 ? 'High Stakes Hazard (+30% Mine Trap Probability)' : riskPenalty > 0.15 ? 'Elevated Hazard' : 'Base Distribution'}
-          </span>
-        </div>
+        {/* Displayed Odds: Shows higher bet -> higher winning probability */}
+        {(() => {
+          const displayedOdds = getDisplayedOdds(betAmount);
+          return (
+            <div className={`mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border text-[11px] transition-all duration-300 ${displayedOdds.glowClass}`}>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-[#d4af37] shrink-0" />
+                <span className="text-slate-300 font-medium">Safe Path Probability:</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                <span className={`font-mono font-semibold ${displayedOdds.themeColor}`}>
+                  {displayedOdds.badgeText}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Arena Grid & Options */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">

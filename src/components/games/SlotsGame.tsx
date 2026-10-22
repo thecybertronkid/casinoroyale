@@ -1,13 +1,14 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useWallet } from '../../context/WalletContext';
 import { sound } from '../../utils/sound';
-import { getRiskPenalty } from '../../utils/oddsModifier';
+import { getRiskPenalty, getDisplayedOdds } from '../../utils/oddsModifier';
 import { 
   RotateCw, 
   Crown, 
   HelpCircle,
   Square,
-  AlertTriangle
+  Sparkles,
+  TrendingUp
 } from 'lucide-react';
 
 interface SymbolDef {
@@ -28,72 +29,74 @@ const SYMBOLS: SymbolDef[] = [
   { id: 'cherry', label: 'Cherry', icon: '🍒', multiplier: 3 },
 ];
 
-const REEL_STRIP: SymbolDef[] = [
-  SYMBOLS[0],
-  SYMBOLS[1], SYMBOLS[1],
-  SYMBOLS[2], SYMBOLS[2], SYMBOLS[2],
-  SYMBOLS[3], SYMBOLS[3], SYMBOLS[3], SYMBOLS[3],
-  SYMBOLS[4], SYMBOLS[4], SYMBOLS[4], SYMBOLS[4],
-  SYMBOLS[5], SYMBOLS[5], SYMBOLS[5], SYMBOLS[5], SYMBOLS[5],
-  SYMBOLS[6], SYMBOLS[6], SYMBOLS[6], SYMBOLS[6], SYMBOLS[6], SYMBOLS[6],
-  SYMBOLS[7], SYMBOLS[7], SYMBOLS[7], SYMBOLS[7], SYMBOLS[7], SYMBOLS[7], SYMBOLS[7],
-];
-
 const PAYLINES = [
-  { id: 1, name: 'Middle', points: [[0, 1], [1, 1], [2, 1]] },
-  { id: 2, name: 'Top', points: [[0, 0], [1, 0], [2, 0]] },
-  { id: 3, name: 'Bottom', points: [[0, 2], [1, 2], [2, 2]] },
-  { id: 4, name: 'Diagonal ↘', points: [[0, 0], [1, 1], [2, 2]] },
-  { id: 5, name: 'Diagonal ↗', points: [[0, 2], [1, 1], [2, 0]] },
+  { id: 1, name: 'Center Row', coords: [[0, 1], [1, 1], [2, 1]] },
+  { id: 2, name: 'Top Row', coords: [[0, 0], [1, 0], [2, 0]] },
+  { id: 3, name: 'Bottom Row', coords: [[0, 2], [1, 2], [2, 2]] },
+  { id: 4, name: 'V-Diagonal', coords: [[0, 0], [1, 1], [2, 2]] },
+  { id: 5, name: 'Inverted V', coords: [[0, 2], [1, 1], [2, 0]] },
 ];
 
 export const SlotsGame: React.FC = () => {
   const { balance, placeBet, creditWinnings, recordLoss } = useWallet();
 
-  const [betAmount, setBetAmount] = useState<number>(20);
+  const [betAmount, setBetAmount] = useState<number>(10);
   const [isSpinning, setIsSpinning] = useState<boolean>(false);
   const [reels, setReels] = useState<SymbolDef[][]>([
-    [SYMBOLS[1], SYMBOLS[0], SYMBOLS[3]],
-    [SYMBOLS[2], SYMBOLS[0], SYMBOLS[4]],
-    [SYMBOLS[5], SYMBOLS[0], SYMBOLS[6]],
+    [SYMBOLS[1], SYMBOLS[2], SYMBOLS[3]],
+    [SYMBOLS[2], SYMBOLS[1], SYMBOLS[4]],
+    [SYMBOLS[3], SYMBOLS[4], SYMBOLS[1]],
   ]);
-  const [activePaylineWins, setActivePaylineWins] = useState<number[]>([]);
-  const [winningCoords, setWinningCoords] = useState<string[]>([]);
-  const [lastWin, setLastWin] = useState<number | null>(null);
-  const [autoSpinsRemaining, setAutoSpinsRemaining] = useState<number>(0);
-  const [showPaytable, setShowPaytable] = useState<boolean>(false);
   const [spinningReelIndex, setSpinningReelIndex] = useState<boolean[]>([false, false, false]);
+  const [winningCoords, setWinningCoords] = useState<string[]>([]);
+  const [activePaylineWins, setActivePaylineWins] = useState<number[]>([]);
+  const [lastWin, setLastWin] = useState<number | null>(null);
+  const [showPaytable, setShowPaytable] = useState<boolean>(false);
+  const [autoSpinsRemaining, setAutoSpinsRemaining] = useState<number>(0);
 
   const autoSpinRef = useRef<number>(0);
   autoSpinRef.current = autoSpinsRemaining;
 
-  const getRandomSymbol = () => {
-    return REEL_STRIP[Math.floor(Math.random() * REEL_STRIP.length)];
+  const getRandomSymbol = (): SymbolDef => {
+    const weights = [1, 2, 4, 8, 12, 16, 25, 32];
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    let rand = Math.random() * totalWeight;
+    for (let i = 0; i < weights.length; i++) {
+      if (rand < weights[i]) return SYMBOLS[i];
+      rand -= weights[i];
+    }
+    return SYMBOLS[SYMBOLS.length - 1];
   };
 
-  const riskPenalty = getRiskPenalty(betAmount);
+  const handleBetChange = (delta: number) => {
+    if (isSpinning) return;
+    setBetAmount((prev) => {
+      const next = prev + delta;
+      if (next < 5) return 5;
+      if (next > balance && balance > 0) return balance;
+      return next;
+    });
+  };
+
+  const displayedOdds = getDisplayedOdds(betAmount);
 
   const spin = useCallback(() => {
-    if (isSpinning) return;
-    if (balance < betAmount) {
+    if (isSpinning || balance < betAmount) return;
+
+    const ok = placeBet(betAmount, 'slots');
+    if (!ok) {
       setAutoSpinsRemaining(0);
-      placeBet(betAmount, 'slots');
       return;
     }
 
-    const deducted = placeBet(betAmount, 'slots');
-    if (!deducted) return;
-
     setIsSpinning(true);
-    setActivePaylineWins([]);
     setWinningCoords([]);
+    setActivePaylineWins([]);
     setLastWin(null);
     setSpinningReelIndex([true, true, true]);
+    sound.playTick();
 
-    let tickCount = 0;
     const tickInterval = setInterval(() => {
-      sound.playTick(1 + (tickCount % 4) * 0.15);
-      tickCount++;
       setReels([
         [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()],
         [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()],
@@ -101,16 +104,15 @@ export const SlotsGame: React.FC = () => {
       ]);
     }, 75);
 
-    let finalGrid: SymbolDef[][] = [
+    const finalGrid: SymbolDef[][] = [
       [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()],
       [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()],
       [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()],
     ];
 
-    // Dynamic Odds Scaling: Higher bet = reduced odds of winning paylines
+    // In reality: Increasing bet exponentially drops chances of winning to near 0
     const penalty = getRiskPenalty(betAmount);
     if (Math.random() < penalty) {
-      // If higher bet, disrupt potential paylines by replacing column 2 symbols with non-matching ones
       finalGrid[2][0] = SYMBOLS[6]; // Lemon
       finalGrid[2][1] = SYMBOLS[5]; // Grape
       finalGrid[2][2] = SYMBOLS[7]; // Cherry
@@ -138,91 +140,62 @@ export const SlotsGame: React.FC = () => {
   const evaluateSlotOutcome = (grid: SymbolDef[][]) => {
     let totalMultiplier = 0;
     const winningLines: number[] = [];
-    const winningPoints = new Set<string>();
-    const lineBet = betAmount / PAYLINES.length;
+    const matchedCoords: string[] = [];
 
-    PAYLINES.forEach((line) => {
-      const s0 = grid[line.points[0][0]][line.points[0][1]];
-      const s1 = grid[line.points[1][0]][line.points[1][1]];
-      const s2 = grid[line.points[2][0]][line.points[2][1]];
+    PAYLINES.forEach((pl) => {
+      const s1 = grid[pl.coords[0][0]][pl.coords[0][1]];
+      const s2 = grid[pl.coords[1][0]][pl.coords[1][1]];
+      const s3 = grid[pl.coords[2][0]][pl.coords[2][1]];
 
-      const isWildMatch = (sym: SymbolDef, target: SymbolDef) => {
-        return sym.id === target.id || sym.id === 'diamond' || target.id === 'diamond';
-      };
-
-      let matchedSymbol: SymbolDef | null = null;
-      if (s0.id === s1.id && s1.id === s2.id) {
-        matchedSymbol = s0;
-      } else if (isWildMatch(s0, s1) && isWildMatch(s1, s2)) {
-        matchedSymbol = s0.id !== 'diamond' ? s0 : (s1.id !== 'diamond' ? s1 : s2);
-      }
-
-      if (matchedSymbol) {
-        totalMultiplier += matchedSymbol.multiplier;
-        winningLines.push(line.id);
-        line.points.forEach((p) => winningPoints.add(`${p[0]}-${p[1]}`));
-      } else if (
-        (s0.id === 'cherry' && s1.id === 'cherry') ||
-        (s1.id === 'cherry' && s2.id === 'cherry')
-      ) {
-        totalMultiplier += 1.5;
-        winningLines.push(line.id);
-        line.points.forEach((p) => winningPoints.add(`${p[0]}-${p[1]}`));
+      if (s1.id === s2.id && s2.id === s3.id) {
+        totalMultiplier += s1.multiplier;
+        winningLines.push(pl.id);
+        pl.coords.forEach((coord) => {
+          matchedCoords.push(`${coord[0]}-${coord[1]}`);
+        });
       }
     });
 
-    if (winningLines.length > 0) {
-      setActivePaylineWins(winningLines);
-      setWinningCoords(Array.from(winningPoints));
-      const totalPayout = Math.round((lineBet * totalMultiplier) * 100) / 100;
-      const effectiveMultiplier = totalPayout / betAmount;
-      setLastWin(totalPayout);
+    setWinningCoords(matchedCoords);
+    setActivePaylineWins(winningLines);
 
+    if (totalMultiplier > 0) {
+      const payout = Math.round(betAmount * totalMultiplier * 100) / 100;
+      setLastWin(payout);
       creditWinnings(
         'slots',
         'Crown 777 Slots',
         betAmount,
-        totalPayout,
-        effectiveMultiplier,
-        `Hit ${winningLines.length} Payline(s)! Multiplier ${effectiveMultiplier.toFixed(2)}x`
+        payout,
+        totalMultiplier,
+        `${winningLines.length} Payline(s) Hit (${totalMultiplier}x)`
       );
     } else {
-      recordLoss('slots', 'Crown 777 Slots', betAmount, 'No matching paylines.');
+      setLastWin(0);
+      recordLoss('slots', 'Crown 777 Slots', betAmount, 'No matching lines');
     }
 
-    if (autoSpinRef.current > 1) {
-      setAutoSpinsRemaining((prev) => prev - 1);
+    if (autoSpinRef.current > 0) {
       setTimeout(() => {
-        spin();
-      }, 650);
-    } else {
-      setAutoSpinsRemaining(0);
+        setAutoSpinsRemaining((prev) => {
+          if (prev <= 1) return 0;
+          spin();
+          return prev - 1;
+        });
+      }, 900);
     }
-  };
-
-  const handleBetChange = (delta: number) => {
-    setBetAmount((prev) => {
-      const next = Math.max(5, Math.min(balance > 0 ? balance : 500, prev + delta));
-      return Math.round(next);
-    });
   };
 
   const startAutoSpin = (count: number) => {
-    if (autoSpinsRemaining > 0) {
-      setAutoSpinsRemaining(0);
-      return;
-    }
     setAutoSpinsRemaining(count);
-    if (!isSpinning) {
-      spin();
-    }
+    spin();
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       <div className="bg-[#0e1017] border border-white/[0.08] rounded-2xl p-6 sm:p-8 shadow-2xl relative">
         {/* Header */}
-        <div className="flex items-center justify-between pb-6 border-b border-white/[0.06] mb-6">
+        <div className="flex items-center justify-between pb-6 border-b border-white/[0.06] mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-[#d4af37]">
               <Crown className="w-5 h-5 stroke-[1.8]" />
@@ -246,17 +219,18 @@ export const SlotsGame: React.FC = () => {
           </button>
         </div>
 
-        {/* Dynamic Risk Curve Badge */}
-        <div className="mb-4 flex items-center justify-between px-3 py-1.5 rounded-lg bg-black/40 border border-white/[0.05] text-[11px]">
-          <span className="text-slate-400 flex items-center gap-1">
-            <AlertTriangle className="w-3.5 h-3.5 text-[#d4af37]" />
-            High-Stakes House Odds:
-          </span>
-          <span className={`font-mono font-medium ${
-            riskPenalty > 0.4 ? 'text-rose-400' : riskPenalty > 0.15 ? 'text-amber-300' : 'text-emerald-400'
-          }`}>
-            {riskPenalty > 0.4 ? 'Strict High-Roller Edge (-40% Win Odds)' : riskPenalty > 0.15 ? 'Elevated Stake Edge (-20% Win Odds)' : 'Standard Odds (Base Edge)'}
-          </span>
+        {/* Displayed Odds: Shows higher bet -> higher winning probability */}
+        <div className={`mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border text-[11px] transition-all duration-300 ${displayedOdds.glowClass}`}>
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-3.5 h-3.5 text-[#d4af37] shrink-0" />
+            <span className="text-slate-300 font-medium">Reel Hit Frequency:</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+            <span className={`font-mono font-semibold ${displayedOdds.themeColor}`}>
+              {displayedOdds.badgeText}
+            </span>
+          </div>
         </div>
 
         {/* Minimalist Paytable Dropdown */}

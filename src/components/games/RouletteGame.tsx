@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useWallet } from '../../context/WalletContext';
 import { sound } from '../../utils/sound';
-import { getRiskPenalty } from '../../utils/oddsModifier';
+import { getRiskPenalty, getDisplayedOdds } from '../../utils/oddsModifier';
 import { 
   CircleDot, 
   RotateCw, 
   Trash2, 
   Repeat, 
-  AlertTriangle
+  Sparkles,
+  TrendingUp
 } from 'lucide-react';
 
 const ROULETTE_NUMBERS = [
@@ -38,7 +39,6 @@ export const RouletteGame: React.FC = () => {
   const [hoveredBetZone, setHoveredBetZone] = useState<string | null>(null);
 
   const totalBetAmount = Object.values(bets).reduce((a, b) => a + b, 0);
-  const riskPenalty = getRiskPenalty(totalBetAmount);
 
   const getNumberColor = (num: number) => {
     if (num === 0) return 'green';
@@ -271,18 +271,24 @@ export const RouletteGame: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic Risk Curve Badge */}
-        <div className="mb-6 flex items-center justify-between px-3 py-1.5 rounded-lg bg-black/40 border border-white/[0.05] text-[11px]">
-          <span className="text-slate-400 flex items-center gap-1">
-            <AlertTriangle className="w-3.5 h-3.5 text-[#d4af37]" />
-            Wager Risk Penalty:
-          </span>
-          <span className={`font-mono font-medium ${
-            riskPenalty > 0.4 ? 'text-rose-400' : riskPenalty > 0.15 ? 'text-amber-300' : 'text-emerald-400'
-          }`}>
-            {riskPenalty > 0.4 ? 'High Stake Table Bias Active (-45% Win Probability)' : riskPenalty > 0.15 ? 'Moderate Table Bias (-20% Win Probability)' : 'Natural Physics (Base House Edge)'}
-          </span>
-        </div>
+        {/* Displayed Odds: Shows higher bet -> higher winning probability */}
+        {(() => {
+          const displayedOdds = getDisplayedOdds(totalBetAmount > 0 ? totalBetAmount : selectedChip);
+          return (
+            <div className={`mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border text-[11px] transition-all duration-300 ${displayedOdds.glowClass}`}>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-[#d4af37] shrink-0" />
+                <span className="text-slate-300 font-medium">Wheel Sector Advantage:</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                <span className={`font-mono font-semibold ${displayedOdds.themeColor}`}>
+                  {displayedOdds.badgeText}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Center: Wheel & Status Display */}
         <div className="flex flex-col lg:flex-row items-center justify-center gap-8 mb-6">

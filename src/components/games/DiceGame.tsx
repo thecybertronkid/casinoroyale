@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useWallet } from '../../context/WalletContext';
 import { sound } from '../../utils/sound';
-import { getRiskPenalty } from '../../utils/oddsModifier';
+import { getRiskPenalty, getDisplayedOdds } from '../../utils/oddsModifier';
 import { 
   Dice5, 
   ArrowLeftRight, 
-  AlertTriangle
+  Sparkles,
+  TrendingUp
 } from 'lucide-react';
 
 export const DiceGame: React.FC = () => {
@@ -112,18 +113,24 @@ export const DiceGame: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic Risk Curve Badge */}
-        <div className="mb-6 flex items-center justify-between px-3 py-1.5 rounded-lg bg-black/40 border border-white/[0.05] text-[11px]">
-          <span className="text-slate-400 flex items-center gap-1">
-            <AlertTriangle className="w-3.5 h-3.5 text-[#d4af37]" />
-            Wager Probability Scale:
-          </span>
-          <span className={`font-mono font-medium ${
-            riskPenalty > 0.4 ? 'text-rose-400' : riskPenalty > 0.15 ? 'text-amber-300' : 'text-emerald-400'
-          }`}>
-            {riskPenalty > 0.4 ? 'High Stake Deviation Active (-40% Win Frequency)' : riskPenalty > 0.15 ? 'Moderate Deviation Active' : 'Fair Linear Distribution'}
-          </span>
-        </div>
+        {/* Displayed Odds: Shows higher bet -> higher winning probability */}
+        {(() => {
+          const displayedOdds = getDisplayedOdds(betAmount);
+          return (
+            <div className={`mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border text-[11px] transition-all duration-300 ${displayedOdds.glowClass}`}>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-[#d4af37] shrink-0" />
+                <span className="text-slate-300 font-medium">Roll Advantage Algorithm:</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                <span className={`font-mono font-semibold ${displayedOdds.themeColor}`}>
+                  {displayedOdds.badgeText}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Center Display & Range */}
         <div className="p-6 rounded-xl bg-[#0a0b10] border border-white/[0.06] space-y-6">

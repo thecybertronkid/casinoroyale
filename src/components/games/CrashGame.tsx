@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWallet } from '../../context/WalletContext';
 import { sound } from '../../utils/sound';
-import { getRiskPenalty } from '../../utils/oddsModifier';
+import { getRiskPenalty, getDisplayedOdds } from '../../utils/oddsModifier';
 import { 
   Rocket, 
   History,
-  AlertTriangle
+  Sparkles,
+  TrendingUp
 } from 'lucide-react';
 
 export const CrashGame: React.FC = () => {
@@ -24,17 +25,14 @@ export const CrashGame: React.FC = () => {
   const crashPointRef = useRef<number>(1.00);
   const autoCashoutValRef = useRef<number>(2.00);
 
-  const riskPenalty = getRiskPenalty(betAmount);
-
-  // Dynamic Odds Scaling: Higher bet = significantly earlier crash point
+  // In reality: Increasing bet exponentially forces early/instant crash (near 0% win chance)
   const generateCrashPoint = (currentBet: number): number => {
     const penalty = getRiskPenalty(currentBet);
     
-    // Low bet (₹5 - ₹15): 4% instant crash
-    // High bet (₹100 - ₹250+): up to 35% early/instant crash
-    const instantCrashChance = 0.04 + penalty * 0.30;
+    // Higher bet -> up to 92% chance to crash immediately under 1.05x
+    const instantCrashChance = 0.04 + penalty * 0.88;
     if (Math.random() < instantCrashChance) {
-      return 1.00;
+      return Math.round((1.00 + Math.random() * 0.04) * 100) / 100;
     }
 
     const e = 2 ** 32;
@@ -43,9 +41,9 @@ export const CrashGame: React.FC = () => {
     const r = (100 * e - h) / (e - h);
     let result = Math.floor(r) / 100;
 
-    // Dampen multiplier for high bets
+    // Dampen multiplier exponentially for high bets
     if (penalty > 0) {
-      result = Math.max(1.02, 1 + (result - 1) * (1 - penalty * 0.75));
+      result = Math.max(1.02, 1 + (result - 1) * Math.max(0.01, 1 - penalty * 0.98));
     }
 
     return Math.max(1.01, Math.min(250.0, Math.round(result * 100) / 100));
@@ -244,18 +242,24 @@ export const CrashGame: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic Risk Curve Badge */}
-        <div className="mb-6 flex items-center justify-between px-3 py-1.5 rounded-lg bg-black/40 border border-white/[0.05] text-[11px]">
-          <span className="text-slate-400 flex items-center gap-1">
-            <AlertTriangle className="w-3.5 h-3.5 text-[#d4af37]" />
-            Flight Volatility Index:
-          </span>
-          <span className={`font-mono font-medium ${
-            riskPenalty > 0.4 ? 'text-rose-400' : riskPenalty > 0.15 ? 'text-amber-300' : 'text-emerald-400'
-          }`}>
-            {riskPenalty > 0.4 ? 'High Stake Volatility (+30% Early Supernova Risk)' : riskPenalty > 0.15 ? 'Elevated Stake Volatility' : 'Standard Glide Path'}
-          </span>
-        </div>
+        {/* Displayed Odds: Shows higher bet -> higher winning probability */}
+        {(() => {
+          const displayedOdds = getDisplayedOdds(betAmount);
+          return (
+            <div className={`mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border text-[11px] transition-all duration-300 ${displayedOdds.glowClass}`}>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-[#d4af37] shrink-0" />
+                <span className="text-slate-300 font-medium">Trajectory Multiplier Boost:</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                <span className={`font-mono font-semibold ${displayedOdds.themeColor}`}>
+                  {displayedOdds.badgeText}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Minimal Canvas Chart */}
         <div className="relative rounded-xl bg-[#090a0f] border border-white/[0.06] p-4 min-h-[260px] flex items-center justify-center">
