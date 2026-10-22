@@ -19,7 +19,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const GOOGLE_CLIENT_ID = '1064045036857-73ci5i2glr4bil4rqg3a5lfcljreqmrg.apps.googleusercontent.com';
+export const GOOGLE_CLIENT_ID = 
+  import.meta.env.VITE_GOOGLE_CLIENT_ID || 
+  '1064045036857-73ci5i2glr4bil4rqg3a5lfcljreqmrg.apps.googleusercontent.com';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(() => {
