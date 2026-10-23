@@ -88,7 +88,7 @@ export const DiceGame: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="bg-[#0e1017] border border-white/[0.08] rounded-2xl p-6 sm:p-8 shadow-2xl relative">
+      <div className="bg-[#0e1017] border border-white/[0.08] rounded-2xl p-4 sm:p-8 shadow-2xl relative">
         {/* Header */}
         <div className="flex items-center justify-between pb-6 border-b border-white/[0.06] mb-4">
           <div className="flex items-center gap-3">
@@ -133,7 +133,7 @@ export const DiceGame: React.FC = () => {
         })()}
 
         {/* Center Display & Range */}
-        <div className="p-6 rounded-xl bg-[#0a0b10] border border-white/[0.06] space-y-6">
+        <div className="p-4 sm:p-6 rounded-xl bg-[#0a0b10] border border-white/[0.06] space-y-6">
           <div className="text-center">
             <span className="text-[10px] uppercase tracking-widest text-slate-500 font-medium block mb-1">
               {isRolling ? 'Generating Roll...' : 'Result'}
@@ -212,13 +212,13 @@ export const DiceGame: React.FC = () => {
         </div>
 
         {/* Controls */}
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 pt-5 border-t border-white/[0.06]">
-          <div className="flex items-center gap-2">
+        <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-5 border-t border-white/[0.06]">
+          <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto gap-2">
             <span className="text-xs text-slate-400 font-medium">Bet:</span>
             <div className="flex items-center bg-[#0a0b10] border border-white/10 rounded-xl p-1">
               <button
                 onClick={() => setBetAmount((p) => Math.max(5, p - 10))}
-                className="w-7 h-7 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 font-bold transition flex items-center justify-center text-xs active:scale-90"
+                className="w-8 h-8 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 font-bold transition flex items-center justify-center text-xs active:scale-90"
               >
                 -
               </button>
@@ -227,7 +227,7 @@ export const DiceGame: React.FC = () => {
               </div>
               <button
                 onClick={() => setBetAmount((p) => Math.min(balance > 0 ? balance : 500, p + 10))}
-                className="w-7 h-7 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 font-bold transition flex items-center justify-center text-xs active:scale-90"
+                className="w-8 h-8 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 font-bold transition flex items-center justify-center text-xs active:scale-90"
               >
                 +
               </button>
@@ -237,7 +237,7 @@ export const DiceGame: React.FC = () => {
           <button
             disabled={isRolling || balance < betAmount}
             onClick={rollDice}
-            className={`w-full sm:w-auto px-8 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200 ${
+            className={`w-full sm:w-auto px-8 py-3 sm:py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200 min-h-[44px] flex items-center justify-center ${
               isRolling ? 'bg-white/10 text-slate-500' : 'gold-gradient-btn'
             }`}
           >

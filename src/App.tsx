@@ -101,19 +101,19 @@ const CasinoContent: React.FC = () => {
       )}
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 py-4 sm:p-8">
         {/* Sleek Minimal Game Switcher Bar */}
         {activeGame && (
-          <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#0e1017] border border-white/[0.06] p-2 rounded-xl">
+          <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-[#0e1017] border border-white/[0.06] p-2 rounded-xl">
             <button
               onClick={() => setActiveGame(null)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/[0.04] text-xs font-medium transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/[0.04] text-xs font-medium transition self-start"
             >
               <ArrowLeft className="w-3.5 h-3.5 text-[#d4af37]" />
               <span>Lobby Floor</span>
             </button>
 
-            <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+            <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 touch-pan-x">
               {CASINO_GAMES.map((g) => {
                 const isRestricted = user?.restrictedGames?.includes(g.id);
                 return (

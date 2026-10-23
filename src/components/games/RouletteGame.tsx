@@ -235,9 +235,9 @@ export const RouletteGame: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <div className="bg-[#0e1017] border border-white/[0.08] rounded-2xl p-6 sm:p-8 shadow-2xl relative">
+      <div className="bg-[#0e1017] border border-white/[0.08] rounded-2xl p-4 sm:p-8 shadow-2xl relative">
         {/* Top Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-white/[0.06] mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-white/[0.06] mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-[#d4af37]">
               <CircleDot className="w-5 h-5 stroke-[1.8]" />
@@ -291,8 +291,8 @@ export const RouletteGame: React.FC = () => {
         })()}
 
         {/* Center: Wheel & Status Display */}
-        <div className="flex flex-col lg:flex-row items-center justify-center gap-8 mb-6">
-          <div className="relative w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center">
+        <div className="flex flex-col lg:flex-row items-center justify-center gap-4 sm:gap-8 mb-6">
+          <div className="relative w-44 h-44 sm:w-60 sm:h-60 flex items-center justify-center">
             <div className="absolute inset-0 rounded-full border border-[#d4af37]/30 bg-[#090a0f] p-2 flex items-center justify-center shadow-inner">
               <div
                 className="w-full h-full rounded-full border border-white/10 relative flex items-center justify-center transition-transform duration-[3800ms] cubic-bezier(0.12, 0.8, 0.33, 1)"
@@ -388,7 +388,12 @@ export const RouletteGame: React.FC = () => {
         </div>
 
         {/* Felt Table */}
-        <div className="p-4 rounded-xl bg-[#081711] border border-emerald-950/80 shadow-inner overflow-x-auto">
+        <div className="mb-2 sm:hidden flex items-center justify-between text-[10px] text-slate-400 px-1">
+          <span className="text-[#d4af37]/90 font-medium">← Swipe table to place outside bets →</span>
+          <span className="font-mono">37 Pockets</span>
+        </div>
+
+        <div className="p-3 sm:p-4 rounded-xl bg-[#081711] border border-emerald-950/80 shadow-inner overflow-x-auto touch-pan-x">
           <div className="min-w-[580px]">
             <div className="flex gap-1.5 mb-1.5">
               <button
@@ -532,9 +537,9 @@ export const RouletteGame: React.FC = () => {
         </div>
 
         {/* Bottom Controls */}
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 pt-5 border-t border-white/[0.06]">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 font-medium mr-1">Chip:</span>
+        <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pt-4 sm:pt-5 border-t border-white/[0.06]">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto max-w-full pb-1 touch-pan-x">
+            <span className="text-xs text-slate-400 font-medium mr-1 shrink-0">Chip:</span>
             {CHIP_VALUES.map((val) => {
               const isSelected = selectedChip === val;
               return (

@@ -25,7 +25,7 @@ export const LoginScreen: React.FC = () => {
       {/* Subtle luxury ambient glow */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-[#d4af37]/5 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="max-w-md w-full bg-[#0e1017] border border-white/[0.08] rounded-3xl p-8 sm:p-10 shadow-2xl relative z-10 text-center">
+      <div className="max-w-md w-full bg-[#0e1017] border border-white/[0.08] rounded-3xl p-6 sm:p-10 shadow-2xl relative z-10 text-center">
         {/* Crown & Branding */}
         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#dfc46e]/20 to-[#997d21]/10 border border-[#d4af37]/30 flex items-center justify-center text-[#d4af37] mx-auto mb-6 shadow-md shadow-[#d4af37]/5">
           <Crown className="w-7 h-7 stroke-[1.8]" />

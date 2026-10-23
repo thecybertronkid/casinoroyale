@@ -60,32 +60,32 @@ export const Lobby: React.FC<LobbyProps> = ({ onSelectGame }) => {
   };
 
   return (
-    <div className="space-y-10 pb-16">
+    <div className="space-y-6 sm:space-y-10 pb-16">
       {/* Hero: Minimalist Luxury Lounge Banner */}
-      <div className="relative rounded-2xl overflow-hidden border border-[#d4af37]/20 bg-gradient-to-b from-[#131622] via-[#0d0f17] to-[#090a0f] p-8 sm:p-12 shadow-2xl">
+      <div className="relative rounded-2xl overflow-hidden border border-[#d4af37]/20 bg-gradient-to-b from-[#131622] via-[#0d0f17] to-[#090a0f] p-5 sm:p-12 shadow-2xl">
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/25 text-[#d4af37] text-[10px] font-semibold tracking-[0.2em] uppercase mb-5">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/25 text-[#d4af37] text-[10px] font-semibold tracking-[0.2em] uppercase mb-4 sm:mb-5">
             <Crown className="w-3.5 h-3.5" />
             <span>The Private Gaming Salon</span>
           </div>
 
-          <h1 className="font-luxury text-3xl sm:text-5xl font-bold text-white tracking-wide leading-tight mb-4">
+          <h1 className="font-luxury text-2xl sm:text-5xl font-bold text-white tracking-wide leading-tight mb-3 sm:mb-4">
             POISA BORBAAD
           </h1>
 
-          <p className="text-sm sm:text-base text-slate-300 font-light leading-relaxed mb-8 max-w-xl">
+          <p className="text-xs sm:text-base text-slate-300 font-light leading-relaxed mb-6 sm:mb-8 max-w-xl">
             A refined virtual gaming lounge designed with authentic casino odds and zero friction. 
             Your wallet holds <strong className="text-white font-mono font-medium">₹{balance.toFixed(2)}</strong> in demo credits. 
             All winnings credit instantaneously for seamless continued play.
           </p>
 
           {/* Understated Grand Reserve Ticker */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 p-4 rounded-xl bg-black/40 border border-white/[0.08] backdrop-blur-sm mb-8 w-fit">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-6 p-3.5 sm:p-4 rounded-xl bg-black/40 border border-white/[0.08] backdrop-blur-sm mb-2 sm:mb-8 w-full sm:w-fit">
             <div>
-              <span className="text-[10px] tracking-[0.18em] uppercase text-slate-400 block font-medium mb-0.5">
+              <span className="text-[9px] sm:text-[10px] tracking-[0.18em] uppercase text-slate-400 block font-medium mb-0.5">
                 Grand Reserve Pool
               </span>
-              <div className="text-2xl sm:text-3xl font-bold font-mono text-[#f3e5ab] tracking-tight">
+              <div className="text-xl sm:text-3xl font-bold font-mono text-[#f3e5ab] tracking-tight">
                 ₹{jackpotPool.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
@@ -94,7 +94,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onSelectGame }) => {
 
             <button
               onClick={() => claimReliefCredits(500)}
-              className="px-4 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-[#f3e5ab] border border-[#d4af37]/30 text-xs font-medium flex items-center gap-1.5 transition self-start sm:self-auto"
+              className="px-4 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-[#f3e5ab] border border-[#d4af37]/30 text-xs font-medium flex items-center justify-center gap-1.5 transition self-stretch sm:self-auto active:scale-95"
             >
               <Plus className="w-3.5 h-3.5 text-[#d4af37]" />
               <span>Claim +₹500 Credits</span>
@@ -104,13 +104,13 @@ export const Lobby: React.FC<LobbyProps> = ({ onSelectGame }) => {
       </div>
 
       {/* Understated Live Activity Strip */}
-      <div className="border border-white/[0.06] bg-[#0c0e15] rounded-xl px-4 py-2.5 flex items-center gap-3 text-xs">
-        <div className="flex items-center gap-1.5 text-[#d4af37] text-[11px] font-semibold tracking-wider uppercase shrink-0">
+      <div className="border border-white/[0.06] bg-[#0c0e15] rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 flex items-center gap-2.5 sm:gap-3 text-xs overflow-hidden">
+        <div className="flex items-center gap-1.5 text-[#d4af37] text-[10px] sm:text-[11px] font-semibold tracking-wider uppercase shrink-0">
           <TrendingUp className="w-3.5 h-3.5" />
-          <span>Recent Activity</span>
+          <span>Activity</span>
         </div>
         <div className="h-3 w-px bg-white/10 shrink-0" />
-        <div className="flex items-center gap-6 overflow-x-auto whitespace-nowrap text-slate-400 font-normal text-[11px]">
+        <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto whitespace-nowrap text-slate-400 font-normal text-[10px] sm:text-[11px] touch-pan-x">
           <span>Player <strong>#8192</strong> landed <span className="text-[#f3e5ab] font-mono font-medium">Black 28</span> on Roulette</span>
           <span className="text-slate-600">•</span>
           <span>Player <strong>#4201</strong> secured <span className="text-[#f3e5ab] font-mono font-medium">6.40x</span> in Ascent</span>
@@ -123,23 +123,23 @@ export const Lobby: React.FC<LobbyProps> = ({ onSelectGame }) => {
 
       {/* Main Floor Games Section */}
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div>
-            <h2 className="font-luxury text-xl sm:text-2xl font-bold text-white tracking-wide">
+            <h2 className="font-luxury text-lg sm:text-2xl font-bold text-white tracking-wide">
               Gaming Floor
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">
               Select a table or machine to begin wagering
             </p>
           </div>
 
           {/* Minimalist Category Tabs */}
-          <div className="flex items-center gap-1 bg-[#0c0e15] p-1 rounded-xl border border-white/[0.06]">
+          <div className="flex items-center gap-1 bg-[#0c0e15] p-1 rounded-xl border border-white/[0.06] overflow-x-auto max-w-full touch-pan-x">
             {['All', 'Table Games', 'Slots', 'Arcade'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition ${
+                className={`px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-medium transition shrink-0 ${
                   selectedCategory === cat
                     ? 'bg-[#181b28] text-white border border-[#d4af37]/30 shadow-sm'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.02]'
@@ -152,7 +152,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onSelectGame }) => {
         </div>
 
         {/* Minimalist Game Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredGames.map((game) => (
             <div
               key={game.id}

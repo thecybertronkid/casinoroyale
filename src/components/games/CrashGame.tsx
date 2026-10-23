@@ -210,9 +210,9 @@ export const CrashGame: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className={`bg-[#0e1017] border border-white/[0.08] rounded-2xl p-6 sm:p-8 shadow-2xl relative ${gameState === 'crashed' ? 'animate-shake' : ''}`}>
+      <div className={`bg-[#0e1017] border border-white/[0.08] rounded-2xl p-4 sm:p-8 shadow-2xl relative ${gameState === 'crashed' ? 'animate-shake' : ''}`}>
         {/* Top Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-white/[0.06] mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-5 border-b border-white/[0.06] mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-[#d4af37]">
               <Rocket className="w-5 h-5 stroke-[1.8]" />
@@ -227,12 +227,12 @@ export const CrashGame: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 self-end sm:self-auto bg-black/40 px-3 py-1.5 rounded-lg border border-white/[0.06]">
-            <History className="w-3.5 h-3.5 text-slate-500 mr-1" />
+          <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto bg-black/40 px-3 py-1.5 rounded-lg border border-white/[0.06] scrollbar-none">
+            <History className="w-3.5 h-3.5 text-slate-500 mr-1 shrink-0" />
             {recentCrashes.map((val, idx) => (
               <span
                 key={idx}
-                className={`text-xs font-mono font-medium px-1 rounded transition-colors ${
+                className={`text-xs font-mono font-medium px-1 rounded transition-colors whitespace-nowrap ${
                   val >= 2 ? 'text-[#f3e5ab]' : 'text-slate-400'
                 }`}
               >
@@ -312,7 +312,7 @@ export const CrashGame: React.FC = () => {
               max={balance > 0 ? balance : 500}
               value={betAmount}
               onChange={(e) => setBetAmount(Math.max(5, parseInt(e.target.value) || 5))}
-              className="w-full bg-[#0a0b10] border border-white/10 rounded-xl px-3 py-2 text-sm font-mono font-medium text-[#f3e5ab] focus:outline-none focus:border-[#d4af37]/40 disabled:opacity-40"
+              className="w-full bg-[#0a0b10] border border-white/10 rounded-xl px-3 py-2.5 text-sm font-mono font-medium text-[#f3e5ab] focus:outline-none focus:border-[#d4af37]/40 disabled:opacity-40 min-h-[44px]"
             />
           </div>
 
@@ -328,9 +328,9 @@ export const CrashGame: React.FC = () => {
                 value={autoCashout}
                 onChange={(e) => setAutoCashout(e.target.value)}
                 placeholder="2.00"
-                className="w-full bg-[#0a0b10] border border-white/10 rounded-xl px-3 py-2 text-sm font-mono font-medium text-white focus:outline-none focus:border-[#d4af37]/40 disabled:opacity-40 pr-8"
+                className="w-full bg-[#0a0b10] border border-white/10 rounded-xl px-3 py-2.5 text-sm font-mono font-medium text-white focus:outline-none focus:border-[#d4af37]/40 disabled:opacity-40 pr-8 min-h-[44px]"
               />
-              <span className="absolute right-3 top-2 text-slate-500 text-xs font-mono">x</span>
+              <span className="absolute right-3 top-3 text-slate-500 text-xs font-mono">x</span>
             </div>
           </div>
 
@@ -339,7 +339,7 @@ export const CrashGame: React.FC = () => {
             {gameState === 'running' ? (
               <button
                 onClick={cashOut}
-                className="w-full py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition active:scale-95 shadow-lg shadow-emerald-500/20"
+                className="w-full py-3 sm:py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition active:scale-95 shadow-lg shadow-emerald-500/20 min-h-[44px] flex items-center justify-center"
               >
                 Cash Out ₹{(betAmount * multiplier).toFixed(2)}
               </button>
@@ -347,7 +347,7 @@ export const CrashGame: React.FC = () => {
               <button
                 disabled={balance < betAmount}
                 onClick={startFlight}
-                className="w-full py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider gold-gradient-btn"
+                className="w-full py-3 sm:py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider gold-gradient-btn min-h-[44px] flex items-center justify-center"
               >
                 Initiate (₹{betAmount})
               </button>

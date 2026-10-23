@@ -193,7 +193,7 @@ export const SlotsGame: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="bg-[#0e1017] border border-white/[0.08] rounded-2xl p-6 sm:p-8 shadow-2xl relative">
+      <div className="bg-[#0e1017] border border-white/[0.08] rounded-2xl p-4 sm:p-8 shadow-2xl relative">
         {/* Header */}
         <div className="flex items-center justify-between pb-6 border-b border-white/[0.06] mb-4">
           <div className="flex items-center gap-3">
@@ -324,14 +324,14 @@ export const SlotsGame: React.FC = () => {
         </div>
 
         {/* Minimalist Controls */}
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 pt-5 border-t border-white/[0.06]">
-          <div className="flex items-center gap-2">
+        <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-5 border-t border-white/[0.06]">
+          <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto gap-2">
             <span className="text-xs text-slate-400 font-medium">Bet:</span>
             <div className="flex items-center bg-[#0a0b10] border border-white/10 rounded-xl p-1">
               <button
                 disabled={isSpinning || betAmount <= 5}
                 onClick={() => handleBetChange(-10)}
-                className="w-7 h-7 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 font-bold disabled:opacity-30 transition flex items-center justify-center text-xs active:scale-90"
+                className="w-8 h-8 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 font-bold disabled:opacity-30 transition flex items-center justify-center text-xs active:scale-90"
               >
                 -
               </button>
@@ -341,7 +341,7 @@ export const SlotsGame: React.FC = () => {
               <button
                 disabled={isSpinning || betAmount >= balance}
                 onClick={() => handleBetChange(10)}
-                className="w-7 h-7 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 font-bold disabled:opacity-30 transition flex items-center justify-center text-xs active:scale-90"
+                className="w-8 h-8 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 font-bold disabled:opacity-30 transition flex items-center justify-center text-xs active:scale-90"
               >
                 +
               </button>
@@ -352,7 +352,7 @@ export const SlotsGame: React.FC = () => {
             {autoSpinsRemaining > 0 ? (
               <button
                 onClick={() => setAutoSpinsRemaining(0)}
-                className="px-3.5 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-rose-400 font-medium text-xs flex items-center gap-1.5 transition active:scale-95"
+                className="flex-1 sm:flex-initial px-4 py-3 sm:py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-rose-400 font-medium text-xs flex items-center justify-center gap-1.5 transition active:scale-95 min-h-[44px]"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
                 <span>Stop ({autoSpinsRemaining})</span>
@@ -361,7 +361,7 @@ export const SlotsGame: React.FC = () => {
               <button
                 disabled={isSpinning}
                 onClick={() => startAutoSpin(10)}
-                className="px-3.5 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 text-xs font-medium border border-white/10 transition disabled:opacity-30 flex items-center gap-1.5 active:scale-95"
+                className="flex-1 sm:flex-initial px-4 py-3 sm:py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 text-xs font-medium border border-white/10 transition disabled:opacity-30 flex items-center justify-center gap-1.5 active:scale-95 min-h-[44px]"
               >
                 <RotateCw className="w-3.5 h-3.5 text-[#d4af37]" />
                 <span>Auto 10</span>
@@ -371,7 +371,7 @@ export const SlotsGame: React.FC = () => {
             <button
               disabled={isSpinning || balance < betAmount}
               onClick={spin}
-              className={`flex-1 sm:flex-initial px-8 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200 ${
+              className={`flex-[2] sm:flex-initial px-8 py-3 sm:py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200 min-h-[44px] flex items-center justify-center ${
                 isSpinning
                   ? 'bg-white/10 text-slate-500 cursor-not-allowed'
                   : 'gold-gradient-btn'

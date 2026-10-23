@@ -143,7 +143,7 @@ export const MinesGame: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="bg-[#0e1017] border border-white/[0.08] rounded-2xl p-6 sm:p-8 shadow-2xl relative">
+      <div className="bg-[#0e1017] border border-white/[0.08] rounded-2xl p-4 sm:p-8 shadow-2xl relative">
         {/* Header */}
         <div className="flex items-center justify-between pb-6 border-b border-white/[0.06] mb-4">
           <div className="flex items-center gap-3">
@@ -190,7 +190,7 @@ export const MinesGame: React.FC = () => {
         {/* Arena Grid & Options */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
           <div className="md:col-span-7 flex justify-center">
-            <div className={`grid grid-cols-5 gap-2.5 p-3.5 rounded-2xl bg-[#090a0f] border border-white/[0.06] max-w-[340px] w-full perspective-1000 ${
+            <div className={`grid grid-cols-5 gap-2 sm:gap-2.5 p-2.5 sm:p-3.5 rounded-2xl bg-[#090a0f] border border-white/[0.06] max-w-[340px] w-full perspective-1000 ${
               gameOver && !hasWon ? 'animate-shake' : ''
             }`}>
               {tiles.map((tile) => {
@@ -248,13 +248,13 @@ export const MinesGame: React.FC = () => {
                 <span className="text-slate-400 font-medium">Mines: {mineCount}</span>
                 <span className="text-slate-500 text-[10px]">Gems: {25 - mineCount}</span>
               </div>
-              <div className="grid grid-cols-4 gap-1">
+              <div className="grid grid-cols-4 gap-1.5">
                 {[1, 3, 5, 10].map((count) => (
                   <button
                     key={count}
                     disabled={isPlaying}
                     onClick={() => setMineCount(count)}
-                    className={`py-1 rounded-lg text-xs font-mono font-medium border transition disabled:opacity-40 active:scale-95 ${
+                    className={`py-2 sm:py-1 rounded-lg text-xs font-mono font-medium border transition disabled:opacity-40 active:scale-95 min-h-[36px] flex items-center justify-center ${
                       mineCount === count
                         ? 'bg-[#181b28] border-[#d4af37]/40 text-[#f3e5ab]'
                         : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white'
@@ -277,7 +277,7 @@ export const MinesGame: React.FC = () => {
                 max={balance > 0 ? balance : 500}
                 value={betAmount}
                 onChange={(e) => setBetAmount(Math.max(5, parseInt(e.target.value) || 5))}
-                className="w-full bg-[#090a0f] border border-white/10 rounded-xl px-3 py-2 text-sm font-mono font-medium text-[#f3e5ab] focus:outline-none focus:border-[#d4af37]/40 disabled:opacity-40"
+                className="w-full bg-[#090a0f] border border-white/10 rounded-xl px-3 py-2.5 text-sm font-mono font-medium text-[#f3e5ab] focus:outline-none focus:border-[#d4af37]/40 disabled:opacity-40 min-h-[44px]"
               />
             </div>
 
@@ -285,7 +285,7 @@ export const MinesGame: React.FC = () => {
               <button
                 disabled={uncoveredCount === 0}
                 onClick={cashOut}
-                className="w-full py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition disabled:opacity-30 active:scale-95 shadow-lg shadow-emerald-500/20"
+                className="w-full py-3 sm:py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition disabled:opacity-30 active:scale-95 shadow-lg shadow-emerald-500/20 min-h-[44px] flex items-center justify-center"
               >
                 Cash Out ₹{currentPayout.toFixed(2)}
               </button>
@@ -293,7 +293,7 @@ export const MinesGame: React.FC = () => {
               <button
                 disabled={balance < betAmount}
                 onClick={startGame}
-                className="w-full py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider gold-gradient-btn"
+                className="w-full py-3 sm:py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider gold-gradient-btn min-h-[44px] flex items-center justify-center"
               >
                 Start Game (₹{betAmount})
               </button>
