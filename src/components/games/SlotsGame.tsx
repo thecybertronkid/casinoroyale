@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useWallet } from '../../context/WalletContext';
 import { sound } from '../../utils/sound';
-import { getRiskPenalty, getDisplayedOdds } from '../../utils/oddsModifier';
+import { generateEngineeredSlotsGrid, getDisplayedOdds } from '../../utils/oddsModifier';
 import { 
   RotateCw, 
   Crown, 
@@ -104,19 +104,8 @@ export const SlotsGame: React.FC = () => {
       ]);
     }, 75);
 
-    const finalGrid: SymbolDef[][] = [
-      [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()],
-      [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()],
-      [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()],
-    ];
-
-    // In reality: Increasing bet exponentially drops chances of winning to near 0
-    const penalty = getRiskPenalty(betAmount);
-    if (Math.random() < penalty) {
-      finalGrid[2][0] = SYMBOLS[6]; // Lemon
-      finalGrid[2][1] = SYMBOLS[5]; // Grape
-      finalGrid[2][2] = SYMBOLS[7]; // Cherry
-    }
+    // Sequence engine: Draw 1 & 2 win more money, Draw 3 reclaims, subsequent high bets face deficit
+    const finalGrid = generateEngineeredSlotsGrid(betAmount, SYMBOLS, getRandomSymbol);
 
     setTimeout(() => {
       setSpinningReelIndex([false, true, true]);

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useWallet } from '../../context/WalletContext';
 import { sound } from '../../utils/sound';
-import { getRiskPenalty, getDisplayedOdds } from '../../utils/oddsModifier';
+import { getEngineeredBlackjackPlan, getDisplayedOdds } from '../../utils/oddsModifier';
 import { 
   Layers, 
   Plus, 
@@ -47,8 +47,8 @@ export const BlackjackGame: React.FC = () => {
   const [resultType, setResultType] = useState<'win' | 'loss' | 'push' | 'blackjack' | null>(null);
 
   const currentBetValue = gamePhase === 'betting' ? betAmount : activeBet;
-  const riskPenalty = getRiskPenalty(currentBetValue);
   const displayedOdds = getDisplayedOdds(currentBetValue);
+  const planRef = useRef<ReturnType<typeof getEngineeredBlackjackPlan> | null>(null);
 
   const createDeck = (): Card[] => {
     const newDeck: Card[] = [];
@@ -91,10 +91,33 @@ export const BlackjackGame: React.FC = () => {
     setResultType(null);
 
     const newDeck = createDeck();
-    const p1 = newDeck.pop()!;
-    const d1 = newDeck.pop()!;
-    const p2 = newDeck.pop()!;
-    const d2 = newDeck.pop()!;
+    let p1 = newDeck.pop()!;
+    let d1 = newDeck.pop()!;
+    let p2 = newDeck.pop()!;
+    let d2 = newDeck.pop()!;
+
+    // Sequence engine: Draw 1 & 2 win more money, Draw 3 reclaims, subsequent high bets face deficit
+    const plan = getEngineeredBlackjackPlan(betAmount);
+    planRef.current = plan;
+
+    if (plan.boostPlayerHands) {
+      if (plan.dealerBustFavor && Math.random() < 0.5) {
+        p1 = { suit: '♠', rank: 'A', value: 11 };
+        p2 = { suit: '♦', rank: 'K', value: 10 };
+        d1 = { suit: '♥', rank: '6', value: 6 };
+        d2 = { suit: '♣', rank: '8', value: 8 };
+      } else {
+        p1 = { suit: '♠', rank: 'K', value: 10 };
+        p2 = { suit: '♦', rank: 'Q', value: 10 };
+        d1 = { suit: '♥', rank: '5', value: 5 };
+        d2 = { suit: '♣', rank: '9', value: 9 };
+      }
+    } else if (plan.dealerTrap) {
+      p1 = { suit: '♠', rank: '10', value: 10 };
+      p2 = { suit: '♦', rank: '6', value: 6 };
+      d1 = { suit: '♥', rank: '10', value: 10 };
+      d2 = { suit: '♣', rank: '9', value: 9 };
+    }
 
     const pHand = [p1, p2];
     const dHand = [d1, d2];
@@ -142,10 +165,15 @@ export const BlackjackGame: React.FC = () => {
     const newDeck = [...deck];
     let card = newDeck.pop()!;
 
-    // Reality: Higher bet exponentially forces a bust when score is 12-16
+    // Sequence engine: Draw 1 & 2 boost hits, Draw 3 / Chasing forces bust
     const currScore = calculateScore(playerHand).score;
-    if (currScore >= 12 && currScore <= 16 && Math.random() < riskPenalty) {
-      card = { suit: '♠', rank: '10', value: 10 };
+    if (currScore >= 12 && currScore <= 16 && planRef.current?.dealerTrap) {
+      card = { suit: '♠', rank: '10', value: 10 }; // Bust on trap
+    } else if (currScore >= 12 && currScore <= 16 && planRef.current?.boostPlayerHands) {
+      const goodVal = 21 - currScore;
+      if (goodVal <= 6) {
+        card = { suit: '♠', rank: String(goodVal), value: goodVal }; // 21 hit!
+      }
     }
 
     const newHand = [...playerHand, card];
@@ -178,8 +206,10 @@ export const BlackjackGame: React.FC = () => {
     let card = newDeck.pop()!;
 
     const pScore = calculateScore(playerHand).score;
-    if (pScore >= 11 && Math.random() < getRiskPenalty(newBet)) {
-      card = { suit: '♦', rank: '2', value: 2 }; // Give poor low card
+    if (pScore >= 11 && planRef.current?.dealerTrap) {
+      card = { suit: '♦', rank: '2', value: 2 }; // Give poor low card on trap
+    } else if (planRef.current?.boostPlayerHands && (pScore === 10 || pScore === 11)) {
+      card = { suit: '♦', rank: 'K', value: 10 }; // Favorable 20/21 on honey double
     }
 
     const newHand = [...playerHand, card];
@@ -212,11 +242,13 @@ export const BlackjackGame: React.FC = () => {
     let dDeck = [...currentDeck];
     let dScore = calculateScore(dHand).score;
 
-    const penalty = getRiskPenalty(currentBet);
-
     const drawDealerCards = () => {
-      // In reality: High bet exponentially forces dealer to draw winning card
-      if (dScore < pScore && pScore <= 20 && Math.random() < penalty) {
+      if (planRef.current?.dealerBustFavor && dScore >= 12 && dScore <= 16) {
+        // Dealer busts on Draw 1
+        dHand.push({ suit: '♣', rank: 'K', value: 10 });
+        dScore = calculateScore(dHand).score;
+      } else if (planRef.current?.dealerTrap && dScore < pScore && pScore <= 20) {
+        // Dealer draws winning card on Draw 3 / Chasing
         const needed = Math.min(10, Math.max(1, pScore + 1 - dScore));
         dHand.push({ suit: '♣', rank: needed === 10 ? 'K' : String(needed), value: needed });
         dScore = calculateScore(dHand).score;

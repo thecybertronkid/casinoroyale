@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useWallet } from '../../context/WalletContext';
 import { sound } from '../../utils/sound';
-import { getRiskPenalty, getDisplayedOdds } from '../../utils/oddsModifier';
+import { advanceGameOddsCycle, evaluateMinesTileClick, getDisplayedOdds } from '../../utils/oddsModifier';
 import { Bomb, Sparkles, TrendingUp } from 'lucide-react';
 
 interface TileState {
@@ -22,8 +22,6 @@ export const MinesGame: React.FC = () => {
   const [uncoveredCount, setUncoveredCount] = useState<number>(0);
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [hasWon, setHasWon] = useState<boolean>(false);
-
-  const riskPenalty = getRiskPenalty(betAmount);
 
   const calculateMultiplier = (mines: number, revealed: number): number => {
     if (revealed === 0) return 1.0;
@@ -48,6 +46,7 @@ export const MinesGame: React.FC = () => {
     const deducted = placeBet(betAmount, 'mines');
     if (!deducted) return;
 
+    advanceGameOddsCycle('mines', betAmount);
     sound.playChip();
 
     const mineIndices = new Set<number>();
@@ -72,14 +71,12 @@ export const MinesGame: React.FC = () => {
   const clickTile = (index: number) => {
     if (!isPlaying || gameOver || tiles[index].isRevealed) return;
 
-    let clickedTile = tiles[index];
+    const clickedTile = tiles[index];
 
-    // In reality: Higher bet exponentially forces mine detonation (drops win chance to near 0)
-    if (!clickedTile.isMine && Math.random() < riskPenalty * 0.95) {
-      clickedTile = { ...clickedTile, isMine: true };
-    }
+    // Sequence engine: Draw 1 & 2 safe diamonds guaranteed, Draw 3 triggers detonation
+    const isMine = evaluateMinesTileClick(betAmount, uncoveredCount, clickedTile.isMine);
 
-    if (clickedTile.isMine) {
+    if (isMine) {
       sound.playExplosion();
       setGameOver(true);
       setIsPlaying(false);

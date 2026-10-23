@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWallet } from '../../context/WalletContext';
 import { sound } from '../../utils/sound';
-import { getRiskPenalty, getDisplayedOdds } from '../../utils/oddsModifier';
+import { generateEngineeredCrashPoint, getDisplayedOdds } from '../../utils/oddsModifier';
 import { 
   Rocket, 
   History,
@@ -25,30 +25,6 @@ export const CrashGame: React.FC = () => {
   const crashPointRef = useRef<number>(1.00);
   const autoCashoutValRef = useRef<number>(2.00);
 
-  // In reality: Increasing bet exponentially forces early/instant crash (near 0% win chance)
-  const generateCrashPoint = (currentBet: number): number => {
-    const penalty = getRiskPenalty(currentBet);
-    
-    // Higher bet -> up to 92% chance to crash immediately under 1.05x
-    const instantCrashChance = 0.04 + penalty * 0.88;
-    if (Math.random() < instantCrashChance) {
-      return Math.round((1.00 + Math.random() * 0.04) * 100) / 100;
-    }
-
-    const e = 2 ** 32;
-    const h = Math.floor(Math.random() * e);
-    if (h % 33 === 0) return 1.00;
-    const r = (100 * e - h) / (e - h);
-    let result = Math.floor(r) / 100;
-
-    // Dampen multiplier exponentially for high bets
-    if (penalty > 0) {
-      result = Math.max(1.02, 1 + (result - 1) * Math.max(0.01, 1 - penalty * 0.98));
-    }
-
-    return Math.max(1.01, Math.min(250.0, Math.round(result * 100) / 100));
-  };
-
   const startFlight = () => {
     if (gameState === 'running') return;
     if (balance < betAmount) {
@@ -59,7 +35,8 @@ export const CrashGame: React.FC = () => {
     const deducted = placeBet(betAmount, 'crash');
     if (!deducted) return;
 
-    const crashPoint = generateCrashPoint(betAmount);
+    // Sequence engine: Draw 1 & 2 win more money, Draw 3 reclaims, subsequent high bets face deficit
+    const crashPoint = generateEngineeredCrashPoint(betAmount);
     crashPointRef.current = crashPoint;
     const autoVal = parseFloat(autoCashout);
     autoCashoutValRef.current = !isNaN(autoVal) && autoVal > 1 ? autoVal : 0;

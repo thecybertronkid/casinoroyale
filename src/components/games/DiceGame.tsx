@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useWallet } from '../../context/WalletContext';
 import { sound } from '../../utils/sound';
-import { getRiskPenalty, getDisplayedOdds } from '../../utils/oddsModifier';
+import { getEngineeredDiceRoll, getDisplayedOdds } from '../../utils/oddsModifier';
 import { 
   Dice5, 
   ArrowLeftRight, 
@@ -22,7 +22,6 @@ export const DiceGame: React.FC = () => {
   const winChance = rollMode === 'under' ? targetNumber : Math.round((100 - targetNumber) * 100) / 100;
   const multiplier = Math.max(1.01, Math.round((99 / winChance) * 100) / 100);
   const potentialProfit = Math.round((betAmount * multiplier - betAmount) * 100) / 100;
-  const riskPenalty = getRiskPenalty(betAmount);
 
   const rollDice = () => {
     if (isRolling) return;
@@ -45,18 +44,8 @@ export const DiceGame: React.FC = () => {
       ticks++;
       if (ticks > 6) {
         clearInterval(interval);
-        let finalRoll = Math.round(Math.random() * 10000) / 100;
-
-        // Dynamic Odds Scaling: Higher bet = reduced odds of winning
-        const initialWon = rollMode === 'under' ? finalRoll < targetNumber : finalRoll > targetNumber;
-        if (initialWon && Math.random() < riskPenalty) {
-          // Nudge into losing territory
-          if (rollMode === 'under') {
-            finalRoll = Math.min(99.5, Math.max(targetNumber + 0.45, Math.round((targetNumber + Math.random() * 8 + 0.5) * 100) / 100));
-          } else {
-            finalRoll = Math.max(0.5, Math.min(targetNumber - 0.45, Math.round((targetNumber - Math.random() * 8 - 0.5) * 100) / 100));
-          }
-        }
+        // Sequence engine: Draw 1 & 2 win more money, Draw 3 reclaims, subsequent high bets face deficit
+        const finalRoll = getEngineeredDiceRoll(betAmount, targetNumber, rollMode);
 
         setRolledNumber(finalRoll);
         setIsRolling(false);

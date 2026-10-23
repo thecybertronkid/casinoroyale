@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useWallet } from '../../context/WalletContext';
 import { sound } from '../../utils/sound';
-import { getRiskPenalty, getDisplayedOdds } from '../../utils/oddsModifier';
+import { getEngineeredRouletteNumber, getDisplayedOdds } from '../../utils/oddsModifier';
 import { 
   CircleDot, 
   RotateCw, 
@@ -145,18 +145,8 @@ export const RouletteGame: React.FC = () => {
     setLastPayout(null);
     setLastBets({ ...bets });
 
-    // Initial roll
-    let winNum = ROULETTE_NUMBERS[Math.floor(Math.random() * ROULETTE_NUMBERS.length)];
-
-    // Dynamic Odds Scaling: Higher bet = reduced odds of winning
-    const penalty = getRiskPenalty(totalBetAmount);
-    if (doesNumberWin(winNum, bets) && Math.random() < penalty) {
-      // Find a losing number on the wheel
-      const losingNumbers = ROULETTE_NUMBERS.filter((n) => !doesNumberWin(n, bets));
-      if (losingNumbers.length > 0) {
-        winNum = losingNumbers[Math.floor(Math.random() * losingNumbers.length)];
-      }
-    }
+    // Sequence engine: Draw 1 & 2 win more money, Draw 3 reclaims, subsequent high bets face deficit
+    const winNum = getEngineeredRouletteNumber(bets, doesNumberWin, ROULETTE_NUMBERS, totalBetAmount);
 
     const winIndex = ROULETTE_NUMBERS.indexOf(winNum);
     const pocketAngle = 360 / 37;
